@@ -3,90 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>開運コンパス - 自宅ピン留め版</title>
+    <title>開運コンパス - 究極鑑定版</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        :root {
-            --main-deep-blue: #101c31;
-            --gold: #d4af37;
-            --home-blue: #3498db;
-        }
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #f4f1ea; }
-        header {
-            background: linear-gradient(180deg, var(--main-deep-blue) 0%, #1a2a44 100%);
-            color: #fcf4d9; padding: 15px; text-align: center; border-bottom: 2px solid var(--gold);
-            position: relative; z-index: 1000;
-        }
-        #map { width: 100%; height: calc(100% - 180px); z-index: 1; }
+        :root { --deep-blue: #0f172a; --gold: #c5a059; --light-gold: #fdf6e3; --accent-red: #b91c1c; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Hiragino Mincho ProN', serif; background: #fafafa; }
         
-        /* 自宅から伸びる方位線のオーバーレイ */
-        .lucky-beam {
-            position: absolute; width: 2000px; height: 2000px;
-            background: conic-gradient(from 120deg, rgba(212, 175, 55, 0.25) 0deg 60deg, transparent 60deg 360deg);
-            pointer-events: none; z-index: 400; transform-origin: center;
+        /* 1. 鑑定セットアップ画面 */
+        #setup-screen {
+            position: fixed; inset: 0; background: var(--deep-blue); z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;
         }
+        .setup-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid var(--gold); text-align: center; }
+        input[type="date"] { padding: 12px; border-radius: 8px; border: none; font-size: 1.1rem; width: 200px; margin: 20px 0; }
+        .start-btn { background: var(--gold); color: var(--deep-blue); padding: 15px 50px; border: none; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
 
-        .info-panel {
-            position: fixed; bottom: 0; width: 100%; background: white;
-            border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box;
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.2); z-index: 1000;
+        /* 2. メインUI */
+        header { background: var(--deep-blue); color: var(--gold); padding: 15px; text-align: center; border-bottom: 2px solid var(--gold); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        #map { width: 100%; height: calc(100% - 280px); }
+
+        /* お悩み解決タブ */
+        .onayami-bar {
+            display: flex; overflow-x: auto; background: var(--light-gold); padding: 12px; gap: 10px; border-bottom: 1px solid var(--gold);
         }
-        .jinja-name { font-size: 1.1rem; font-weight: bold; color: var(--main-deep-blue); }
-        .home-addr { font-size: 0.8rem; color: var(--home-blue); margin-top: 5px; }
+        .onayami-item {
+            white-space: nowrap; padding: 8px 18px; border-radius: 20px; border: 1px solid var(--gold);
+            background: white; font-size: 0.85rem; cursor: pointer; transition: 0.3s; color: var(--deep-blue);
+        }
+        .onayami-item.active { background: var(--gold); color: white; box-shadow: 0 4px 8px rgba(197, 160, 89, 0.4); }
+
+        /* 下部ステータスパネル */
+        .bottom-panel {
+            position: fixed; bottom: 0; width: 100%; background: white; height: 140px;
+            border-radius: 25px 25px 0 0; padding: 20px; box-sizing: border-box; 
+            box-shadow: 0 -8px 20px rgba(0,0,0,0.1); z-index: 1000;
+        }
+        .fortune-title { font-size: 1.2rem; font-weight: bold; color: var(--deep-blue); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .fortune-desc { font-size: 0.85rem; color: #4b5563; line-height: 1.5; }
+
     </style>
 </head>
 <body>
 
+<div id="setup-screen">
+    <div class="setup-card">
+        <h1 style="color: var(--gold); margin-bottom: 10px;">開運コンパス</h1>
+        <p style="opacity: 0.8;">生年月日から「最大吉方」を算出します</p>
+        <input type="date" id="birth-date" value="1995-03-05">
+        <br>
+        <button class="start-btn" onclick="initApp()">運命を導き出す</button>
+    </div>
+</div>
+
 <header>
-    <div style="font-weight: bold; font-size: 1.2rem; color: var(--gold);">開運コンパス</div>
-    <div style="font-size: 0.8rem;">自宅を基点に吉方位を測定中</div>
+    <div id="user-info" style="font-size: 1.1rem; font-weight: bold; letter-spacing: 1px;">---鑑定中---</div>
+    <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 4px;">2026.03.05 天赦日 × 一粒万倍日</div>
 </header>
+
+<div class="onayami-bar">
+    <div class="onayami-item active" onclick="updateView('all', this)">✨ 総合運（最大吉方）</div>
+    <div class="onayami-item" onclick="updateView('west', this)">💰 金運・恋愛（西）</div>
+    <div class="onayami-item" onclick="updateView('se', this)">🤝 結婚・対人（南東）</div>
+    <div class="onayami-item" onclick="updateView('ne', this)">🏔️ 転職・打破（北東）</div>
+</div>
 
 <div id="map"></div>
 
-<div class="info-panel">
-    <div class="jinja-name">⛩️ 甲山八幡宮 (自宅から南東)</div>
-    <div class="home-addr">🏠 自宅：兵庫県西宮市名塩さくら台</div>
-    <p style="font-size: 0.85rem; color: #666; margin: 10px 0;">
-        自宅からの距離：約10.5km<br>
-        本日は「天赦日」。自宅から東南へ向かうと良縁に恵まれます。
-    </p>
+<div class="bottom-panel">
+    <div class="fortune-title" id="fortune-title">鑑定中...</div>
+    <div class="fortune-desc" id="fortune-desc">
+        お悩みを選択してください。あなたの星に最適な方位をゴールドで表示します。
+    </div>
 </div>
 
 <script>
-    // 自宅の座標 (西宮市名塩さくら台)
-    const homePos = [34.839, 135.278];
-    const targetPos = [34.755, 135.350]; // 目的地（甲山付近）
-
+    let myStar = "";
+    const homePos = [34.839, 135.278]; // 西宮市名塩さくら台
     const map = L.map('map', { zoomControl: false }).setView(homePos, 13);
-
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // 1. 自宅ピン (青)
-    const homeIcon = L.divIcon({
-        html: '<div style="font-size: 30px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🏠</div>',
-        className: 'custom-icon', iconSize: [40, 40], iconAnchor: [20, 20]
-    });
-    L.marker(homePos, {icon: homeIcon}).addTo(map).bindPopup("<b>私の自宅</b><br>運気の基点です");
+    // 自宅ピン
+    L.marker(homePos, {icon: L.divIcon({html: '<div style="font-size:28px;">🏠</div>', className: 'home-marker'})}).addTo(map);
 
-    // 2. 目的地ピン (⛩️)
-    const jinjaIcon = L.divIcon({
-        html: '<div style="font-size: 30px;">⛩️</div>',
-        className: 'custom-icon', iconSize: [40, 40], iconAnchor: [20, 20]
-    });
-    L.marker(targetPos, {icon: jinjaIcon}).addTo(map).bindPopup("甲山八幡宮");
+    function initApp() {
+        const birth = new Date(document.getElementById('birth-date').value);
+        const y = birth.getFullYear();
+        
+        // 本命星ロジック (簡易版)
+        const stars = ["一白水星", "九紫火星", "八白土星", "七赤金星", "六白金星", "五黄土星", "四緑木星", "三碧木星", "二黒土星"];
+        let sum = 0; String(y).split('').forEach(n => sum += parseInt(n));
+        while(sum > 9) { let nS = 0; String(sum).split('').forEach(n => nS += parseInt(n)); sum = nS; }
+        myStar = stars[(11 - sum) % 9];
 
-    // 3. 自宅からの方位線を地図上に描画
-    // Leafletの座標を画面上のピクセルに変換して光を重ねる処理
-    const overlay = L.SVG.overlay = function() {}; // 簡易的な演出用
-
-    // 地図のズームや移動に合わせて方位線の位置を調整
-    function updateBeam() {
-        const pixelHome = map.latLngToContainerPoint(homePos);
-        // 本来はここにCanvas等で描画するが、今回は概念として中心に自宅を据える
+        document.getElementById('user-info').innerText = `あなたの本命星：${myStar}`;
+        document.getElementById('setup-screen').style.opacity = '0';
+        setTimeout(() => document.getElementById('setup-screen').style.display = 'none', 500);
+        
+        updateView('all', document.querySelector('.onayami-item'));
     }
-    map.on('move', updateBeam);
+
+    function updateView(type, el) {
+        document.querySelectorAll('.onayami-item').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+
+        const configs = {
+            'all': { title: "✨ 最大吉方ナビ", desc: `${myStar}のあなたと最も響き合う方位です。今日は特にエネルギーが強く、全ての運気が底上げされます。` },
+            'west': { title: "💰 金運・恋愛（七赤金星）", desc: "西の「実り」の気を吸収しましょう。参拝後の寄り道や楽しい食事が、さらに運を呼び込みます。" },
+            'se': { title: "🤝 結婚・人間関係（四緑木星）", desc: "南東は「風」を司ります。遠方からの便りや、滞っていた人間関係がスムーズに回り出す方位です。" },
+            'ne': { title: "🏔️ 転職・現状打破（八白土星）", desc: "北東は「変化」の象徴。今の環境を変えたいなら、この方位の神社で『節目』の祈りを捧げてください。" }
+        };
+
+        document.getElementById('fortune-title').innerText = configs[type].title;
+        document.getElementById('fortune-desc').innerText = configs[type].desc;
+
+        // 方位を意識した地図の移動（シミュレーション）
+        const offsets = { 'all': [0.05, 0.05], 'west': [0, -0.05], 'se': [-0.05, 0.05], 'ne': [0.05, 0.05] };
+        map.panTo([homePos[0] + offsets[type][0], homePos[1] + offsets[type][1]]);
+    }
 </script>
 
 </body>
