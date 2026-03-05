@@ -1,126 +1,1510 @@
 <!DOCTYPE html>
+
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>開運コンパス - 究極鑑定版</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        :root { --deep-blue: #0f172a; --gold: #c5a059; --light-gold: #fdf6e3; --accent-red: #b91c1c; }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Hiragino Mincho ProN', serif; background: #fafafa; }
-        
-        /* 1. 鑑定セットアップ画面 */
-        #setup-screen {
-            position: fixed; inset: 0; background: var(--deep-blue); z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;
-        }
-        .setup-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid var(--gold); text-align: center; }
-        input[type="date"] { padding: 12px; border-radius: 8px; border: none; font-size: 1.1rem; width: 200px; margin: 20px 0; }
-        .start-btn { background: var(--gold); color: var(--deep-blue); padding: 15px 50px; border: none; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>開運コンパス</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ===== RESET & ROOT ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold:   #c9921e;
+  --gold2:  #e8c96a;
+  --red:    #b03018;
+  --ink:    #0e0b07;
+  --paper:  #f9f5ec;
+  --paper2: #f0e8d4;
+  --mist:   #c8bca8;
+  --jade:   #2a6a48;
+}
+html, body { height: 100%; font-family: 'Noto Serif JP', serif; background: var(--ink); color: var(--ink); overflow: hidden; }
 
-        /* 2. メインUI */
-        header { background: var(--deep-blue); color: var(--gold); padding: 15px; text-align: center; border-bottom: 2px solid var(--gold); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        #map { width: 100%; height: calc(100% - 280px); }
+/* ===== LAYOUT ===== */
+#app {
+display: flex;
+height: 100vh;
+width: 100vw;
+}
+#sidebar {
+width: 340px;
+flex-shrink: 0;
+height: 100vh;
+background: var(–paper);
+display: flex;
+flex-direction: column;
+border-right: 2px solid var(–gold);
+overflow: hidden;
+position: relative;
+z-index: 10;
+}
+#sidebar::before {
+content: ‘’;
+position: absolute;
+top: 0; left: 0; right: 0;
+height: 3px;
+background: linear-gradient(90deg, var(–red), var(–gold), var(–red));
+z-index: 1;
+}
+#map-wrap {
+flex: 1;
+position: relative;
+height: 100vh;
+}
+#map {
+width: 100%;
+height: 100%;
+background: #111;
+}
 
-        /* お悩み解決タブ */
-        .onayami-bar {
-            display: flex; overflow-x: auto; background: var(--light-gold); padding: 12px; gap: 10px; border-bottom: 1px solid var(--gold);
-        }
-        .onayami-item {
-            white-space: nowrap; padding: 8px 18px; border-radius: 20px; border: 1px solid var(--gold);
-            background: white; font-size: 0.85rem; cursor: pointer; transition: 0.3s; color: var(--deep-blue);
-        }
-        .onayami-item.active { background: var(--gold); color: white; box-shadow: 0 4px 8px rgba(197, 160, 89, 0.4); }
+/* ===== TAB NAV ===== */
+#tab-nav {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+background: var(–ink);
+flex-shrink: 0;
+margin-top: 3px;
+border-bottom: 1px solid var(–gold);
+}
+.tab-btn {
+padding: 10px 2px 8px;
+text-align: center;
+cursor: pointer;
+color: var(–mist);
+font-size: 9px;
+letter-spacing: .06em;
+border-bottom: 2px solid transparent;
+transition: all .2s;
+user-select: none;
+background: none;
+border-top: none;
+border-left: none;
+border-right: none;
+font-family: ‘Noto Serif JP’, serif;
+}
+.tab-btn .ico { display: block; font-size: 18px; margin-bottom: 2px; }
+.tab-btn.active { color: var(–gold2); border-bottom-color: var(–gold); background: rgba(200,146,42,.08); }
 
-        /* 下部ステータスパネル */
-        .bottom-panel {
-            position: fixed; bottom: 0; width: 100%; background: white; height: 140px;
-            border-radius: 25px 25px 0 0; padding: 20px; box-sizing: border-box; 
-            box-shadow: 0 -8px 20px rgba(0,0,0,0.1); z-index: 1000;
-        }
-        .fortune-title { font-size: 1.2rem; font-weight: bold; color: var(--deep-blue); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-        .fortune-desc { font-size: 0.85rem; color: #4b5563; line-height: 1.5; }
+/* ===== PANEL SYSTEM ===== */
+.panel { display: none; flex: 1; flex-direction: column; overflow-y: auto; min-height: 0; }
+.panel.active { display: flex; }
+.panel::-webkit-scrollbar { width: 3px; }
+.panel::-webkit-scrollbar-thumb { background: var(–mist); border-radius: 2px; }
 
-    </style>
+.panel-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ===== PANEL HEADER ===== */
+.p-header {
+background: var(–ink);
+color: var(–paper);
+padding: 14px 16px;
+flex-shrink: 0;
+text-align: center;
+border-bottom: 1px solid rgba(200,146,42,.3);
+}
+.p-header h2 {
+font-family: ‘Shippori Mincho’, serif;
+font-size: 17px;
+color: var(–gold2);
+letter-spacing: .15em;
+}
+.p-header p { font-size: 10px; color: var(–mist); margin-top: 3px; letter-spacing: .1em; }
+
+/* ===== PERIOD TABS ===== */
+#period-nav {
+display: flex;
+background: var(–paper2);
+border-bottom: 1px solid var(–mist);
+flex-shrink: 0;
+}
+.period-btn {
+flex: 1;
+padding: 8px 4px;
+text-align: center;
+font-size: 11px;
+letter-spacing: .08em;
+cursor: pointer;
+color: #7a6a50;
+border-bottom: 2px solid transparent;
+transition: all .2s;
+background: none;
+border-top: none;
+border-left: none;
+border-right: none;
+font-family: ‘Noto Serif JP’, serif;
+}
+.period-btn small { display: block; font-size: 9px; opacity: .7; }
+.period-btn.active { color: var(–gold); border-bottom-color: var(–gold); background: var(–paper); font-weight: 600; }
+
+/* ===== COMPASS ===== */
+#compass-wrap {
+background: var(–ink);
+border-radius: 8px;
+padding: 14px;
+display: flex;
+justify-content: center;
+border: 1px solid rgba(200,146,42,.25);
+}
+
+/* ===== DIR CHIPS ===== */
+#dir-grid {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 6px;
+}
+.dir-chip {
+padding: 9px 4px 7px;
+border-radius: 6px;
+text-align: center;
+cursor: pointer;
+border: 1.5px solid var(–mist);
+background: var(–paper);
+transition: all .2s;
+position: relative;
+user-select: none;
+}
+.dir-chip.great { border-color: var(–gold); background: linear-gradient(160deg,#fffbf0,#fdeead); }
+.dir-chip.good  { border-color: #3a8a68; background: linear-gradient(160deg,#f0fff8,#c8f0dc); }
+.dir-chip.bad   { opacity: .55; }
+.dir-chip.gbad  { border-color: #c04030; background: linear-gradient(160deg,#fff5f0,#ffd8cc); opacity: .8; }
+.dir-chip.sel   { transform: scale(1.07); box-shadow: 0 3px 12px rgba(181,49,26,.3); border-color: var(–red) !important; }
+.dir-chip .tag {
+position: absolute; top: 2px; right: 2px;
+font-size: 7px; padding: 1px 4px; border-radius: 3px;
+color: #fff; font-weight: 700; letter-spacing: .03em;
+}
+.dir-chip.great .tag { background: var(–gold); }
+.dir-chip.good  .tag { background: var(–jade); }
+.dir-chip.gbad  .tag { background: var(–red); }
+.dir-chip .d-ico  { font-size: 15px; }
+.dir-chip .d-name { font-size: 11px; font-weight: 600; margin-top: 2px; }
+
+/* ===== SECTION LABEL ===== */
+.sec {
+font-size: 10px;
+letter-spacing: .2em;
+color: var(–gold);
+display: flex;
+align-items: center;
+gap: 8px;
+font-family: ‘Shippori Mincho’, serif;
+}
+.sec::after { content: ‘’; flex: 1; height: 1px; background: linear-gradient(90deg, var(–mist), transparent); }
+
+/* ===== RADIUS ===== */
+.radius-row {
+display: flex;
+align-items: center;
+gap: 10px;
+padding: 9px 12px;
+background: var(–paper2);
+border-radius: 6px;
+}
+.radius-row label { font-size: 11px; color: #7a6a50; white-space: nowrap; }
+.radius-row input { flex: 1; accent-color: var(–gold); }
+.radius-row span { font-size: 12px; font-weight: 700; color: var(–gold); min-width: 44px; text-align: right; }
+
+/* ===== BENEFIT FILTER ===== */
+#benefit-filter { display: flex; flex-wrap: wrap; gap: 5px; }
+.ben-btn {
+padding: 5px 10px;
+border-radius: 20px;
+font-size: 10px;
+cursor: pointer;
+border: 1.5px solid var(–mist);
+background: var(–paper);
+color: #5a4a30;
+transition: all .15s;
+font-family: ‘Noto Serif JP’, serif;
+user-select: none;
+}
+.ben-btn.on { background: linear-gradient(135deg,#fef3d0,#f8e8a0); border-color: var(–gold); color: #5a3a10; font-weight: 600; }
+
+/* ===== SHRINE LIST ===== */
+#shrine-list { display: flex; flex-direction: column; gap: 7px; }
+.sh-item {
+padding: 11px 13px;
+background: var(–paper);
+border-radius: 6px;
+border: 1px solid var(–mist);
+border-left: 3px solid transparent;
+cursor: pointer;
+transition: all .18s;
+}
+.sh-item:hover { border-left-color: var(–gold); transform: translateX(3px); }
+.sh-item.sel { border-left-color: var(–red); background: #fdfaf5; }
+.sh-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.sh-meta { font-size: 10px; color: #7a6a50; margin-bottom: 5px; }
+.sh-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.sh-tag { font-size: 9px; padding: 2px 7px; background: var(–paper2); border-radius: 20px; border: 1px solid var(–mist); color: #5a4a30; }
+.sh-tag.hl { background: linear-gradient(135deg,#fef3d0,#f0e8b8); border-color: var(–gold); color: #6a4a10; }
+
+.empty-msg {
+text-align: center;
+padding: 20px;
+color: #8a7a60;
+font-size: 12px;
+line-height: 1.9;
+background: var(–paper2);
+border-radius: 6px;
+}
+
+/* ===== SETTINGS PANEL ===== */
+.profile-item {
+display: flex;
+align-items: center;
+gap: 12px;
+padding: 12px 13px;
+background: var(–paper2);
+border-radius: 6px;
+border: 1.5px solid var(–mist);
+cursor: pointer;
+transition: all .2s;
+}
+.profile-item.active { border-color: var(–gold); background: #fdfaf0; }
+.p-avatar {
+width: 38px; height: 38px;
+border-radius: 50%;
+background: var(–ink);
+display: flex; align-items: center; justify-content: center;
+font-size: 20px;
+border: 2px solid var(–mist);
+flex-shrink: 0;
+}
+.profile-item.active .p-avatar { border-color: var(–gold); }
+.p-info { flex: 1; min-width: 0; }
+.p-name { font-size: 13px; font-weight: 600; }
+.p-sub  { font-size: 10px; color: #7a6a50; margin-top: 2px; }
+.p-star { font-size: 11px; color: var(–gold); font-weight: 600; margin-top: 2px; }
+
+#add-btn {
+display: flex; align-items: center; justify-content: center; gap: 8px;
+padding: 11px;
+background: var(–paper);
+border: 1.5px dashed var(–mist);
+border-radius: 6px;
+cursor: pointer;
+font-size: 12px;
+color: #7a6a50;
+transition: all .2s;
+width: 100%;
+font-family: ‘Noto Serif JP’, serif;
+}
+#add-btn:hover { border-color: var(–gold); color: var(–gold); }
+
+#add-form {
+display: none;
+flex-direction: column;
+gap: 10px;
+background: var(–paper2);
+border-radius: 8px;
+padding: 14px;
+border: 1px solid var(–mist);
+}
+.f-group { display: flex; flex-direction: column; gap: 5px; }
+.f-group label { font-size: 10px; color: #7a6a50; letter-spacing: .08em; }
+.f-row  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.f-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.f-input, .f-select {
+padding: 8px 10px;
+background: #fff;
+border: 1.5px solid var(–mist);
+border-radius: 4px;
+font-family: ‘Noto Serif JP’, serif;
+font-size: 12px;
+color: var(–ink);
+appearance: none;
+transition: border-color .2s;
+}
+.f-input:focus, .f-select:focus { outline: none; border-color: var(–gold); }
+.btn-primary {
+padding: 10px;
+border: none;
+border-radius: 4px;
+background: linear-gradient(135deg, var(–red), #7a1a10);
+color: #fff;
+font-family: ‘Noto Serif JP’, serif;
+font-size: 12px;
+letter-spacing: .1em;
+cursor: pointer;
+transition: all .2s;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 3px 12px rgba(176,48,24,.4); }
+.btn-cancel {
+padding: 9px;
+border: 1.5px solid var(–mist);
+border-radius: 4px;
+background: transparent;
+font-family: ‘Noto Serif JP’, serif;
+font-size: 11px;
+color: #7a6a50;
+cursor: pointer;
+}
+.btn-cancel:hover { border-color: var(–gold); color: var(–gold); }
+
+/* Home pin badge */
+.home-badge {
+display: flex; align-items: center; gap: 10px;
+padding: 11px 13px;
+background: var(–paper2);
+border-radius: 6px;
+border: 1.5px solid #5aaddd;
+}
+.home-badge-info { flex: 1; }
+.home-badge-name  { font-size: 12px; font-weight: 600; }
+.home-badge-coord { font-size: 10px; color: #7a6a50; margin-top: 2px; }
+.home-badge-edit  { font-size: 10px; padding: 4px 10px; border: 1px solid var(–mist); border-radius: 4px; background: none; color: #7a6a50; cursor: pointer; font-family: ‘Noto Serif JP’, serif; }
+.home-badge-edit:hover { border-color: var(–gold); color: var(–gold); }
+
+/* ===== GOSHUIN ===== */
+.stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.stat-card { background: var(–ink); border-radius: 6px; padding: 12px 8px; text-align: center; border: 1px solid rgba(200,146,42,.2); }
+.stat-num { font-family: ‘Shippori Mincho’, serif; font-size: 26px; font-weight: 700; color: var(–gold2); line-height: 1; }
+.stat-lbl { font-size: 9px; color: var(–mist); margin-top: 4px; letter-spacing: .1em; }
+
+.goshuin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.g-card {
+background: var(–ink);
+border-radius: 8px;
+border: 1px solid rgba(200,146,42,.2);
+overflow: hidden;
+cursor: pointer;
+transition: all .2s;
+position: relative;
+}
+.g-card:hover { transform: scale(1.03); }
+.g-card.unlocked { border-color: var(–gold); }
+.g-art { height: 90px; display: flex; align-items: center; justify-content: center; font-size: 36px; position: relative; }
+.g-lock { position: absolute; inset: 0; background: rgba(10,8,5,.7); display: flex; align-items: center; justify-content: center; font-size: 22px; color: rgba(255,255,255,.25); }
+.g-card.unlocked .g-lock { display: none; }
+.g-info { padding: 8px 10px; }
+.g-name { font-size: 11px; font-weight: 600; color: var(–paper); }
+.g-date { font-size: 9px; color: var(–mist); margin-top: 2px; }
+
+.visit-item { padding: 10px 13px; background: var(–paper2); border-radius: 5px; border: 1px solid var(–mist); border-left: 3px solid var(–gold); }
+.visit-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.visit-sub  { font-size: 10px; color: #7a6a50; }
+
+/* ===== OMIKUJI ===== */
+.omi-box {
+width: 100%; background: var(–ink);
+border-radius: 8px; border: 1px solid rgba(200,146,42,.3);
+padding: 20px 16px; text-align: center; position: relative; overflow: hidden;
+}
+.omi-box::before, .omi-box::after { content: ‘✦’; position: absolute; color: var(–gold); opacity: .2; font-size: 36px; }
+.omi-box::before { top: 8px; left: 12px; }
+.omi-box::after  { bottom: 8px; right: 12px; }
+.omi-lbl    { font-size: 9px; color: var(–mist); letter-spacing: .3em; margin-bottom: 6px; }
+.omi-result { font-family: ‘Shippori Mincho’, serif; font-size: 44px; font-weight: 700; color: var(–gold2); letter-spacing: .15em; margin: 6px 0; transition: transform .3s; }
+.omi-msg    { font-size: 12px; color: var(–mist); line-height: 1.8; margin-top: 8px; }
+.omi-rows   { display: flex; flex-direction: column; gap: 6px; }
+.omi-row    { display: flex; justify-content: space-between; align-items: center; padding: 9px 13px; background: var(–paper2); border-radius: 5px; border: 1px solid var(–mist); }
+.omi-key    { font-size: 11px; color: #7a6a50; }
+.omi-val    { font-size: 12px; font-weight: 600; }
+.draw-btn {
+width: 100%; padding: 14px; border: none; border-radius: 8px;
+background: linear-gradient(135deg, var(–red), #7a1a10);
+color: #fff; font-family: ‘Shippori Mincho’, serif;
+font-size: 15px; letter-spacing: .2em; cursor: pointer; transition: all .2s;
+}
+.draw-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(176,48,24,.5); }
+
+/* ===== MAP OVERLAYS ===== */
+#map-bar {
+position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+background: rgba(12,9,5,.9); backdrop-filter: blur(10px);
+padding: 8px 18px; border-radius: 24px;
+border: 1px solid rgba(200,146,42,.5);
+font-size: 11px; color: var(–paper); z-index: 1000;
+white-space: nowrap; letter-spacing: .1em;
+box-shadow: 0 4px 16px rgba(0,0,0,.5);
+pointer-events: none;
+}
+#share-btn, #home-btn {
+position: absolute;
+background: rgba(12,9,5,.9); backdrop-filter: blur(8px);
+padding: 8px 14px; border-radius: 20px;
+border: 1px solid rgba(200,146,42,.5);
+color: var(–gold); font-size: 11px; cursor: pointer; z-index: 1000;
+letter-spacing: .08em; transition: all .2s;
+font-family: ‘Noto Serif JP’, serif;
+display: flex; align-items: center; gap: 6px;
+}
+#share-btn { top: 14px; right: 14px; }
+#home-btn  { bottom: 110px; right: 14px; }
+#share-btn:hover, #home-btn:hover { background: var(–gold); color: var(–ink); }
+#home-btn.set { border-color: #5aaddd; color: #5aaddd; }
+#home-btn.set:hover { background: #5aaddd; color: var(–ink); }
+
+.map-legend {
+position: absolute; bottom: 24px; left: 14px;
+background: rgba(12,9,5,.9); backdrop-filter: blur(8px);
+padding: 11px 14px; border-radius: 8px;
+border: 1px solid rgba(200,146,42,.3);
+z-index: 1000; font-size: 10px; color: var(–paper);
+}
+.leg-title { color: var(–gold); font-size: 9px; letter-spacing: .15em; margin-bottom: 7px; font-family: ‘Shippori Mincho’, serif; }
+.leg-row   { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.leg-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ===== SHRINE POPUP ===== */
+#shrine-popup {
+position: absolute; bottom: 20px; right: 14px;
+background: rgba(249,245,236,.97); backdrop-filter: blur(14px);
+border: 1.5px solid var(–gold); border-radius: 8px;
+padding: 17px 19px; width: 300px; z-index: 1000;
+box-shadow: 0 8px 40px rgba(0,0,0,.4);
+display: none;
+}
+#shrine-popup.open { display: block; animation: popIn .3s cubic-bezier(.34,1.56,.64,1); }
+@keyframes popIn { from { opacity:0; transform:scale(.92) translateY(12px); } to { opacity:1; transform:none; } }
+#popup-close {
+position: absolute; top: 10px; right: 12px;
+background: none; border: none; cursor: pointer;
+font-size: 14px; color: #7a6a50;
+}
+#popup-name   { font-family: ‘Shippori Mincho’, serif; font-size: 17px; font-weight: 700; padding-right: 20px; margin-bottom: 3px; }
+#popup-addr   { font-size: 10px; color: #7a6a50; margin-bottom: 8px; }
+#popup-badge  { display: none; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: linear-gradient(135deg,#fef3d0,#f8e890); border: 1px solid var(–gold); color: #6a4a10; margin-bottom: 8px; width: fit-content; }
+#popup-desc   { font-size: 11px; line-height: 1.85; color: #3a2a18; padding: 8px 0; border-top: 1px solid var(–mist); border-bottom: 1px solid var(–mist); margin-bottom: 8px; }
+#popup-action { font-size: 10px; padding: 8px 11px; background: linear-gradient(135deg,#fdf0d0,#f8e8a8); border-radius: 6px; border-left: 3px solid var(–gold); color: #5a3a10; line-height: 1.7; margin-bottom: 9px; }
+#popup-tags   { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.p-tag        { font-size: 9px; padding: 3px 9px; border-radius: 20px; background: var(–paper2); border: 1px solid var(–mist); }
+#popup-checkin {
+width: 100%; padding: 9px; border: none; border-radius: 5px;
+background: linear-gradient(135deg, var(–gold), #8a5a10);
+color: #fff; font-family: ‘Noto Serif JP’, serif;
+font-size: 11px; letter-spacing: .1em; cursor: pointer;
+}
+
+/* ===== TOAST ===== */
+#toast {
+position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+background: var(–ink); color: var(–paper);
+padding: 11px 20px; border-radius: 24px;
+border: 1px solid var(–gold); font-size: 12px; letter-spacing: .08em;
+z-index: 9999; opacity: 0; pointer-events: none;
+transition: opacity .3s, transform .3s;
+white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+
+/* ===== MODALS ===== */
+.modal-bg {
+position: fixed; inset: 0; z-index: 9000;
+background: rgba(0,0,0,.75); backdrop-filter: blur(4px);
+display: none; align-items: center; justify-content: center;
+}
+.modal-bg.open { display: flex; }
+.modal-card {
+width: 340px; max-height: 90vh; overflow-y: auto;
+background: var(–paper); border-radius: 12px;
+border: 1.5px solid var(–gold);
+box-shadow: 0 20px 60px rgba(0,0,0,.6);
+animation: popIn .35s cubic-bezier(.34,1.56,.64,1);
+}
+.modal-head {
+background: var(–ink); padding: 16px 20px;
+display: flex; align-items: center; gap: 10px;
+border-bottom: 1px solid rgba(200,146,42,.3);
+}
+.modal-head-icon  { font-size: 26px; }
+.modal-head-title { font-family: ‘Shippori Mincho’, serif; font-size: 16px; color: var(–gold2); font-weight: 700; }
+.modal-head-sub   { font-size: 10px; color: var(–mist); margin-top: 2px; }
+.modal-body       { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+#home-picker-wrap { width: 100%; height: 160px; border-radius: 8px; border: 1.5px solid var(–mist); overflow: hidden; position: relative; }
+#home-picker-map  { width: 100%; height: 100%; }
+#home-crosshair   { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-105%); font-size: 28px; pointer-events: none; z-index: 10; }
+.modal-hint  { font-size: 10px; color: #8a7a60; text-align: center; line-height: 1.7; }
+.modal-btns  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modal-btn   { padding: 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: ‘Noto Serif JP’, serif; transition: all .2s; }
+.modal-btn-p { background: linear-gradient(135deg,var(–gold),#8a5a10); color: #fff; border: none; }
+.modal-btn-s { background: transparent; border: 1.5px solid var(–mist); color: #7a6a50; }
+.modal-btn-s:hover { border-color: var(–gold); color: var(–gold); }
+.modal-btn-d { background: transparent; border: 1.5px solid #c04030; color: #c04030; grid-column: span 2; }
+.modal-btn-d:hover { background: #c04030; color: #fff; }
+.modal-close-lnk { width: 100%; padding: 10px; background: none; border: none; color: #8a7a60; font-size: 11px; cursor: pointer; font-family: ‘Noto Serif JP’, serif; }
+
+/* Share card */
+.share-art {
+background: linear-gradient(135deg,var(–ink),#1a1020);
+padding: 24px; text-align: center;
+border-bottom: 1px solid rgba(200,146,42,.3);
+position: relative; overflow: hidden;
+}
+.share-art::before {
+content: ‘’;
+position: absolute; inset: 0;
+background: radial-gradient(ellipse at center,rgba(200,146,42,.12) 0%,transparent 70%);
+}
+.share-art .torii { font-size: 38px; filter: drop-shadow(0 0 14px rgba(200,146,42,.6)); }
+.share-art .s-title { font-family: ‘Shippori Mincho’, serif; font-size: 21px; color: var(–gold2); margin-top: 8px; letter-spacing: .15em; }
+.share-art .s-sub   { font-size: 11px; color: var(–mist); margin-top: 3px; }
+#share-text { font-size: 11px; color: #7a6a50; line-height: 1.8; }
+
+/* Goshuin art gradients */
+.ga1{background:linear-gradient(135deg,#1a0a30,#3a1060)}
+.ga2{background:linear-gradient(135deg,#0a1a2a,#0a3a5a)}
+.ga3{background:linear-gradient(135deg,#1a1a0a,#3a3010)}
+.ga4{background:linear-gradient(135deg,#2a0a0a,#5a1a10)}
+.ga5{background:linear-gradient(135deg,#0a2a1a,#0a4a2a)}
+.ga6{background:linear-gradient(135deg,#1a1030,#2a2050)}
+.ga7{background:linear-gradient(135deg,#2a1000,#5a2800)}
+.ga8{background:linear-gradient(135deg,#001a2a,#003a5a)}
+
+/* Eho banner */
+.eho-banner {
+background: linear-gradient(135deg,#1a0900,#3a1600);
+border: 1px solid var(–gold); border-radius: 8px; padding: 13px 15px;
+}
+.eho-title { font-family: ‘Shippori Mincho’, serif; font-size: 14px; color: var(–gold2); font-weight: 700; margin-bottom: 4px; }
+.eho-body  { font-size: 11px; color: var(–mist); line-height: 1.7; }
+.eho-cta   { display: inline-block; margin-top: 9px; padding: 6px 13px; font-size: 10px; background: var(–gold); color: var(–ink); border-radius: 4px; cursor: pointer; font-weight: 700; transition: all .2s; }
+.eho-cta:hover { background: var(–gold2); }
+
+/* Countdown */
+.countdown-card {
+background: var(–ink);
+border-radius: 8px;
+padding: 14px 16px;
+border: 1px solid rgba(200,146,42,.25);
+}
+.countdown-title { font-family: ‘Shippori Mincho’, serif; font-size: 13px; color: var(–gold2); margin-bottom: 5px; }
+.countdown-body  { font-size: 11px; color: var(–mist); line-height: 1.7; }
+</style>
+
 </head>
 <body>
 
-<div id="setup-screen">
-    <div class="setup-card">
-        <h1 style="color: var(--gold); margin-bottom: 10px;">開運コンパス</h1>
-        <p style="opacity: 0.8;">生年月日から「最大吉方」を算出します</p>
-        <input type="date" id="birth-date" value="1995-03-05">
-        <br>
-        <button class="start-btn" onclick="initApp()">運命を導き出す</button>
+<div id="app">
+
+  <!-- ════ SIDEBAR ════ -->
+
+  <div id="sidebar">
+    <!-- NAV TABS -->
+    <div id="tab-nav">
+      <button class="tab-btn active" data-tab="home"><span class="ico">🧭</span>吉方位</button>
+      <button class="tab-btn" data-tab="settings"><span class="ico">👤</span>設定</button>
+      <button class="tab-btn" data-tab="goshuin"><span class="ico">📕</span>御朱印</button>
+      <button class="tab-btn" data-tab="omikuji"><span class="ico">🎋</span>おみくじ</button>
     </div>
-</div>
 
-<header>
-    <div id="user-info" style="font-size: 1.1rem; font-weight: bold; letter-spacing: 1px;">---鑑定中---</div>
-    <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 4px;">2026.03.05 天赦日 × 一粒万倍日</div>
-</header>
-
-<div class="onayami-bar">
-    <div class="onayami-item active" onclick="updateView('all', this)">✨ 総合運（最大吉方）</div>
-    <div class="onayami-item" onclick="updateView('west', this)">💰 金運・恋愛（西）</div>
-    <div class="onayami-item" onclick="updateView('se', this)">🤝 結婚・対人（南東）</div>
-    <div class="onayami-item" onclick="updateView('ne', this)">🏔️ 転職・打破（北東）</div>
-</div>
-
-<div id="map"></div>
-
-<div class="bottom-panel">
-    <div class="fortune-title" id="fortune-title">鑑定中...</div>
-    <div class="fortune-desc" id="fortune-desc">
-        お悩みを選択してください。あなたの星に最適な方位をゴールドで表示します。
+```
+<!-- ── HOME PANEL ── -->
+<div class="panel active" id="tab-home">
+  <div class="p-header">
+    <h2 id="star-name">生年月日を設定してください</h2>
+    <p  id="star-desc">設定タブから入力できます</p>
+  </div>
+  <div id="period-nav">
+    <button class="period-btn active" data-period="day">日盤<small>今日</small></button>
+    <button class="period-btn" data-period="month">月盤<small>今月</small></button>
+    <button class="period-btn" data-period="year">年盤<small>今年</small></button>
+    <button class="period-btn" data-period="eho">恵方<small>2026</small></button>
+  </div>
+  <div class="panel-body">
+    <div class="eho-banner" id="eho-banner" style="display:none">
+      <div class="eho-title">🔥 2026年 丙午 恵方参り</div>
+      <div class="eho-body">今年の恵方は<strong style="color:var(--gold2)">南南東（丙）</strong>。60年に一度の「火」の年。</div>
+      <div class="eho-cta" onclick="activateEho()">✦ 恵方神社を表示</div>
     </div>
+    <div class="sec">方位盤</div>
+    <div id="compass-wrap">
+      <svg id="compass-svg" width="200" height="200" viewBox="0 0 200 200"></svg>
+    </div>
+    <div class="sec">方位の吉凶</div>
+    <div id="dir-grid"></div>
+    <div class="sec">検索範囲</div>
+    <div class="radius-row">
+      <label>半径</label>
+      <input type="range" id="radius-input" min="1" max="100" value="15">
+      <span id="radius-label">15 km</span>
+    </div>
+    <div class="sec">ご利益で絞り込み</div>
+    <div id="benefit-filter"></div>
+    <div class="sec">付近の神社</div>
+    <div id="shrine-list">
+      <div class="empty-msg">⛩️<br><br>設定タブでプロフィールを入力し<br>方位をタップしてください</div>
+    </div>
+  </div>
 </div>
+
+<!-- ── SETTINGS PANEL ── -->
+<div class="panel" id="tab-settings">
+  <div class="panel-body">
+    <div class="sec">登録プロフィール</div>
+    <div id="profile-list"></div>
+    <button id="add-btn" onclick="toggleAddForm()">＋ 家族・友人を追加</button>
+    <div id="add-form">
+      <div class="sec" style="margin-top:2px">プロフィール追加</div>
+      <div class="f-group">
+        <label>お名前</label>
+        <input class="f-input" id="f-name" placeholder="例：山田 太郎">
+      </div>
+      <div class="f-group">
+        <label>生年月日</label>
+        <div class="f-row">
+          <select class="f-select" id="f-year"></select>
+          <select class="f-select" id="f-month"></select>
+          <select class="f-select" id="f-day"></select>
+        </div>
+      </div>
+      <div class="f-group">
+        <label>性別 ／ アイコン</label>
+        <div class="f-row2">
+          <select class="f-select" id="f-gender">
+            <option value="male">男性</option>
+            <option value="female">女性</option>
+          </select>
+          <select class="f-select" id="f-emoji">
+            <option value="🧑">🧑 大人</option>
+            <option value="👶">👶 子供</option>
+            <option value="👴">👴 祖父</option>
+            <option value="👵">👵 祖母</option>
+            <option value="🧒">🧒 子ども</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="addProfile()">✦ このプロフィールを追加</button>
+      <button class="btn-cancel" onclick="toggleAddForm()">キャンセル</button>
+    </div>
+
+    <div class="sec">自宅の場所</div>
+    <div id="home-not-set" class="empty-msg" style="padding:12px;font-size:11px">🏠 未設定<br>地図の「自宅を設定」から登録</div>
+    <div id="home-set-badge" class="home-badge" style="display:none">
+      <div style="font-size:22px">🏠</div>
+      <div class="home-badge-info">
+        <div class="home-badge-name">自宅（ピン留め済み）</div>
+        <div class="home-badge-coord" id="badge-coord"></div>
+      </div>
+      <button class="home-badge-edit" onclick="openHomeModal()">変更</button>
+    </div>
+
+    <div class="sec">対象年</div>
+    <select class="f-select" id="target-year" style="width:100%"></select>
+
+    <div class="countdown-card">
+      <div class="countdown-title">📅 最強開運日カウントダウン</div>
+      <div class="countdown-body" id="countdown-body">計算中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── GOSHUIN PANEL ── -->
+<div class="panel" id="tab-goshuin">
+  <div class="panel-body">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-num" id="stat-v">0</div><div class="stat-lbl">参拝済み</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-p">0</div><div class="stat-lbl">開運Pt</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-d">0</div><div class="stat-lbl">制覇方位</div></div>
+    </div>
+    <div class="sec">デジタル御朱印</div>
+    <div class="goshuin-grid" id="goshuin-grid"></div>
+    <div class="sec">参拝ログ</div>
+    <div id="visit-log"><div class="empty-msg" style="padding:14px">まだ参拝記録がありません</div></div>
+  </div>
+</div>
+
+<!-- ── OMIKUJI PANEL ── -->
+<div class="panel" id="tab-omikuji">
+  <div class="panel-body">
+    <div class="omi-box">
+      <div class="omi-lbl">DIVINE ORACLE</div>
+      <div class="omi-result" id="omi-result">－</div>
+      <div class="omi-msg" id="omi-msg">方位を選んでからおみくじを引いてください</div>
+    </div>
+    <div class="omi-rows">
+      <div class="omi-row"><span class="omi-key">🌸 恋愛運</span><span class="omi-val" id="omi-love">—</span></div>
+      <div class="omi-row"><span class="omi-key">💰 金運</span><span class="omi-val" id="omi-money">—</span></div>
+      <div class="omi-row"><span class="omi-key">💼 仕事運</span><span class="omi-val" id="omi-work">—</span></div>
+      <div class="omi-row"><span class="omi-key">🏥 健康運</span><span class="omi-val" id="omi-health">—</span></div>
+      <div class="omi-row"><span class="omi-key">🎨 ラッキーカラー</span><span class="omi-val" id="omi-color">—</span></div>
+      <div class="omi-row"><span class="omi-key">🌿 開運アクション</span><span class="omi-val" id="omi-action" style="font-size:10px;text-align:right;max-width:170px">—</span></div>
+    </div>
+    <button class="draw-btn" onclick="drawOmikuji()">🎋 おみくじを引く</button>
+  </div>
+</div>
+```
+
+  </div>
+
+  <!-- ════ MAP ════ -->
+
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="map-bar">🧭 方位をタップして神社を探す</div>
+    <button id="share-btn" onclick="openShareModal()">📤 シェア</button>
+    <button id="home-btn" onclick="openHomeModal()"><span>🏠</span><span id="home-btn-lbl">自宅を設定</span></button>
+    <div class="map-legend">
+      <div class="leg-title">LEGEND</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#c9921e"></div>大吉方位</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#2a8a68"></div>吉方位</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#6a5a50"></div>凶方位</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#aa2222"></div>大凶方位</div>
+    </div>
+    <div id="shrine-popup">
+      <button id="popup-close" onclick="closePopup()">✕</button>
+      <div id="popup-name"></div>
+      <div id="popup-addr"></div>
+      <div id="popup-badge"></div>
+      <div id="popup-desc"></div>
+      <div id="popup-action"></div>
+      <div id="popup-tags"></div>
+      <button id="popup-checkin" onclick="checkin()">⛩ チェックイン（御朱印GET）</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOME MODAL -->
+
+<div class="modal-bg" id="home-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-head-icon">🏠</div>
+      <div>
+        <div class="modal-head-title">自宅をピン留め</div>
+        <div class="modal-head-sub">吉方位の起点として自宅を登録できます</div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="home-preview" style="display:none;padding:10px 13px;background:var(--paper2);border-radius:6px;border:1px solid var(--mist);font-size:11px;color:#5a4a30;line-height:1.7"></div>
+      <div id="home-picker-wrap">
+        <div id="home-picker-map"></div>
+        <div id="home-crosshair">🏠</div>
+      </div>
+      <div class="modal-hint">地図をドラッグして自宅を中央に合わせ<br>「ここに設定」を押してください</div>
+      <div class="modal-btns">
+        <button class="modal-btn modal-btn-p" onclick="setHomeFromMap()">🏠 ここに設定</button>
+        <button class="modal-btn modal-btn-s" onclick="setHomeFromGPS()">📍 現在地を自宅に</button>
+      </div>
+      <div id="home-delete-row" style="display:none">
+        <button class="modal-btn modal-btn-d" style="width:100%;margin-top:4px" onclick="deleteHome()">🗑 自宅ピンを削除</button>
+      </div>
+      <button class="modal-close-lnk" onclick="closeHomeModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+
+<div class="modal-bg" id="share-modal">
+  <div class="modal-card" style="max-width:320px">
+    <div class="share-art">
+      <div class="torii">⛩️</div>
+      <div class="s-title" id="share-title">吉方位参拝</div>
+      <div class="s-sub" id="share-subtitle">—</div>
+    </div>
+    <div class="modal-body">
+      <div id="share-text"></div>
+      <div class="modal-btns">
+        <button class="modal-btn modal-btn-p" onclick="shareX()">🐦 Xでシェア</button>
+        <button class="modal-btn modal-btn-s" onclick="closeShareModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <script>
-    let myStar = "";
-    const homePos = [34.839, 135.278]; // 西宮市名塩さくら台
-    const map = L.map('map', { zoomControl: false }).setView(homePos, 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+// ════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════
+const DIRS = [
+  {key:'N',  label:'北',  deg:0,   el:'水'},
+  {key:'NE', label:'北東', deg:45,  el:'土'},
+  {key:'E',  label:'東',  deg:90,  el:'木'},
+  {key:'SE', label:'南東', deg:135, el:'風'},
+  {key:'S',  label:'南',  deg:180, el:'火'},
+  {key:'SW', label:'南西', deg:225, el:'土'},
+  {key:'W',  label:'西',  deg:270, el:'金'},
+  {key:'NW', label:'北西', deg:315, el:'金'},
+];
 
-    // 自宅ピン
-    L.marker(homePos, {icon: L.divIcon({html: '<div style="font-size:28px;">🏠</div>', className: 'home-marker'})}).addTo(map);
+const DIR_INFO = {
+  N:  {ben:['縁結び','子宝','知恵'],  action:'御神水をいただくと◎。青い服で参拝を。',      msg:'静かに力を蓄える時。水のように静観し次の好機を待て。'},
+  NE: {ben:['厄除け','転換','変革'],  action:'早朝参拝が最も効果的。白い食べ物が吉。',      msg:'変化を恐れるな。山のように安定した心で新たな一歩を。'},
+  E:  {ben:['仕事運','健康','長寿'],  action:'朝日を拝みながら参拝。緑の野菜を食べると◎。', msg:'木が芽吹くように迷わず行動に移せ。新しいアイデアが湧く。'},
+  SE: {ben:['縁結び','旅行','人間関係'],action:'花の香りで気を整えよ。深呼吸を。',           msg:'縁と出会いを大切にせよ。風が情報をもたらす。'},
+  S:  {ben:['学業','名誉','芸能'],    action:'赤い食べ物が吉。明るい時間帯の参拝が最適。',   msg:'太陽の如く輝く時。才能を世に示す好機。'},
+  SW: {ben:['家内安全','縁結び','継続'],action:'土に触れる体験をすると◎。黄色い食べ物が吉。',msg:'大地のように包容力をもって。コツコツとした努力が実を結ぶ。'},
+  W:  {ben:['金運','芸術','喜び'],    action:'金属製品を磨いてから参拝。白・銀色を身に付けると◎。',msg:'収穫の秋のように豊かさが集まる。楽しむことへの罪悪感を手放せ。'},
+  NW: {ben:['出世','健康','指導力'],  action:'旅行前の参拝に最適。清潔感のある白い服で。',   msg:'天の如く大きな視野で物事を捉えよ。リーダーの資質が開花する。'},
+};
 
-    function initApp() {
-        const birth = new Date(document.getElementById('birth-date').value);
-        const y = birth.getFullYear();
-        
-        // 本命星ロジック (簡易版)
-        const stars = ["一白水星", "九紫火星", "八白土星", "七赤金星", "六白金星", "五黄土星", "四緑木星", "三碧木星", "二黒土星"];
-        let sum = 0; String(y).split('').forEach(n => sum += parseInt(n));
-        while(sum > 9) { let nS = 0; String(sum).split('').forEach(n => nS += parseInt(n)); sum = nS; }
-        myStar = stars[(11 - sum) % 9];
+const LUCKY = {
+  1:{great:['SE'],good:['N','S','W'],    gbad:['SW']},
+  2:{great:['SW'],good:['NE','W','NW'],  gbad:['E']},
+  3:{great:['S'], good:['SE','N','E'],   gbad:['W']},
+  4:{great:['N'], good:['S','SE','E'],   gbad:['NW']},
+  5:{great:['SW'],good:['NE','W','NW'],  gbad:['SE']},
+  6:{great:['W'], good:['NW','SW','NE'], gbad:['S']},
+  7:{great:['NW'],good:['W','NE','SW'],  gbad:['N']},
+  8:{great:['NE'],good:['SW','W','NW'],  gbad:['SE']},
+  9:{great:['E'], good:['SE','S','N'],   gbad:['NE']},
+};
 
-        document.getElementById('user-info').innerText = `あなたの本命星：${myStar}`;
-        document.getElementById('setup-screen').style.opacity = '0';
-        setTimeout(() => document.getElementById('setup-screen').style.display = 'none', 500);
-        
-        updateView('all', document.querySelector('.onayami-item'));
+const STAR_NAMES = ['','一白水星','二黒土星','三碧木星','四緑木星','五黄土星','六白金星','七赤金星','八白土星','九紫火星'];
+const STAR_DESC  = ['','水のエネルギー。知性と縁を司る。','大地のエネルギー。忍耐と勤勉。','木々のエネルギー。行動力と創造。','風のエネルギー。信頼と縁。','中央の土気。変化と転換期。','金のエネルギー。権威とリーダー。','兌の金気。喜びと金運。','山のエネルギー。変化と蓄積。','火のエネルギー。名誉と学問。'];
+
+const BENEFITS = ['縁結び','金運','仕事運','学業','健康','厄除け','商売繁盛','恋愛運'];
+
+const OMI_MSGS = {
+  N:['静かな水辺を訪れると気が整う','青や黒の持ち物が守護に','秘密の計画は今月成就する'],
+  NE:['古いものを手放す時期','白い食べ物で浄化を','早朝の空気を吸うと転機が訪れる'],
+  E:['東の窓を開けて朝日を浴びよ','緑の植物を育てると開運','新しい出会いに積極的に'],
+  SE:['旅に出ると良縁が生まれる','花の香りで気を整えよ','言葉を大切にすると吉'],
+  S:['赤い食べ物でエネルギー補充','目立つことを恐れるな','情熱を形にする時'],
+  SW:['感謝の言葉を多く伝えると吉','継続が力となる時期','土に触れる体験をせよ'],
+  W:['喜びを分かち合うと拡大する','金属製の物を磨くと金運上昇','夕暮れ時に感謝を'],
+  NW:['決断は迅速に行うと吉','清潔感のある服装が開運の鍵','空を見上げて大局を把握せよ'],
+};
+
+const SHRINES = [
+  {id:1,  name:'明治神宮',     addr:'東京都渋谷区代々木神園町1-1',     lat:35.6763, lng:139.6993, ben:['縁結び','出世','仕事運'],    desc:'明治天皇を祀る都心の森。年間300万人が参拝する東京最大の神社。',         action:'大鳥居をくぐる前に深呼吸を。清正井への参拝も開運に効果的。'},
+  {id:2,  name:'浅草神社',     addr:'東京都台東区浅草2-3-1',            lat:35.7147, lng:139.7967, ben:['商売繁盛','縁結び','厄除け'], desc:'三社様と呼ばれ江戸最古の神社のひとつ。三社祭は東京を代表する祭り。',    action:'おみくじは凶が出ても持ち帰ると良縁に変わるといわれる。'},
+  {id:3,  name:'神田明神',     addr:'東京都千代田区外神田2-16-2',       lat:35.7026, lng:139.7671, ben:['商売繁盛','仕事運','縁結び'], desc:'江戸の総鎮守。IT企業の聖地としても有名。三つの御祭神が守護する古社。',  action:'拝殿奥の銭形平次の碑に触れると金運がアップするといわれる。'},
+  {id:4,  name:'日枝神社',     addr:'東京都千代田区永田町2-10-5',       lat:35.6738, lng:139.7398, ben:['出世','仕事運','縁結び'],    desc:'山王様と親しまれる徳川幕府ゆかりの社。政財界人も多く参拝する格式高い神社。',action:'稲荷参道の赤い鳥居をくぐると仕事運が上昇するとされる。'},
+  {id:5,  name:'根津神社',     addr:'東京都文京区根津1-28-9',           lat:35.7206, lng:139.7643, ben:['縁結び','学業','厄除け'],    desc:'1900年以上の歴史を誇る古社。5月のつつじ苑は都内屈指の名所。',          action:'乙女稲荷の千本鳥居を通り抜けると良縁が結ばれるといわれる。'},
+  {id:6,  name:'亀戸天神社',   addr:'東京都江東区亀戸3-6-1',            lat:35.6980, lng:139.8260, ben:['学業','芸能','縁結び'],      desc:'東の太宰府とも呼ばれる学問の神様。藤まつりは下町の春の風物詩。',        action:'境内の臥龍梅の木を時計回りに一周すると学業が向上するとされる。'},
+  {id:7,  name:'鶴岡八幡宮',   addr:'神奈川県鎌倉市雪ノ下2-1-31',      lat:35.3259, lng:139.5558, ben:['武道','出世','縁結び'],      desc:'源頼朝が創建した鎌倉を代表する社。武家の守護神として崇められてきた。',  action:'段葛（参道）を歩きながら参拝に向かうと武運と仕事運が高まる。'},
+  {id:8,  name:'寒川神社',     addr:'神奈川県高座郡寒川町宮山3916',     lat:35.3747, lng:139.3842, ben:['厄除け','縁結び','健康'],    desc:'日本唯一の「八方除」の守護神。どの方向に行く前にもおすすめの神社。',    action:'どの方向に行く前にも立ち寄ることで方位の悪い気を払うことができる。'},
+  {id:9,  name:'江島神社',     addr:'神奈川県藤沢市江の島2-3-8',        lat:35.2993, lng:139.4796, ben:['縁結び','金運','芸能'],      desc:'日本三大弁財天のひとつ。音楽・芸能・財の神として全国から参拝者が訪れる。',action:'奥津宮の亀石に触れ一願のみ祈ると成就するといわれる。'},
+  {id:10, name:'北野天満宮',   addr:'京都府京都市上京区馬喰町',         lat:35.0352, lng:135.7353, ben:['学業','芸能','受験合格'],    desc:'菅原道真公を祀る全国天満宮の総本社。梅の名所として有名。',              action:'御土居の白梅の木に触れながら参拝すると知恵と才能が磨かれるとされる。'},
+  {id:11, name:'伏見稲荷大社', addr:'京都府京都市伏見区深草藪之内町68', lat:34.9671, lng:135.7727, ben:['商売繁盛','金運','縁結び'],  desc:'全国約3万社の稲荷神社の総本社。朱色の千本鳥居が世界的に有名。',        action:'お山巡りで一ノ峯まで登ると強いご利益が得られる。'},
+  {id:12, name:'八坂神社',     addr:'京都府京都市東山区祇園町北側625',  lat:35.0038, lng:135.7786, ben:['縁結び','厄除け','商売繁盛'], desc:'祇園祭で有名な古社。全国約2300社の八坂神社の総本社。',                  action:'美御前社の美容水を肌に当てると美しさが増すといわれる。'},
+  {id:13, name:'貴船神社',     addr:'京都府京都市左京区鞍馬貴船町180', lat:35.1177, lng:135.7558, ben:['縁結び','恋愛運'],            desc:'水の神・高龗神を祀る全国450社の貴船神社総本社。絵馬発祥の地。',        action:'水占みくじは水に浸すと文字が浮かぶ。奥宮の御神木に触れると縁結びに。'},
+  {id:14, name:'春日大社',     addr:'奈良県奈良市春日野町160',          lat:34.6813, lng:135.8481, ben:['武道','学業','縁結び'],      desc:'世界遺産に登録された奈良を代表する古社。万燈籠で有名。',                action:'2月と8月の万燈籠の夜は特に霊験あらたか。境内の鹿は神の使い。'},
+  {id:15, name:'住吉大社',     addr:'大阪府大阪市住吉区住吉2-9-89',    lat:34.6127, lng:135.4932, ben:['航海安全','縁結び','厄除け'], desc:'全国約2300社の住吉神社の総本社。太鼓橋が美しい古社。初詣日本一。',     action:'太鼓橋（反橋）を往復するとこの世の罪や汚れが清められるとされる。'},
+  {id:16, name:'出雲大社',     addr:'島根県出雲市大社町杵築東195',      lat:35.4017, lng:132.6850, ben:['縁結び','福縁','商売繁盛'],  desc:'縁結びの神として名高い大国主大神を祀る。日本最古の神社のひとつ。',     action:'参拝は二礼四拍手一礼が正式な作法。神楽殿のしめ縄は日本最大級。'},
+  {id:17, name:'藤森神社',     addr:'京都府京都市伏見区深草鳥居崎町609',lat:34.9418, lng:135.7672, ben:['勝負運','学業','健康'],      desc:'菖蒲（尚武）の節句発祥の地。馬と武運の神社。2026年特別縁起社。',      action:'紫陽花苑の紫の花を愛でながら参拝すると勝負事の運が高まる。'},
+  {id:18, name:'伊勢神宮（外宮）',addr:'三重県伊勢市豊川町279',         lat:34.4924, lng:136.7054, ben:['食福','産業','五穀豊穣'],    desc:'豊受大御神を祀る外宮。衣食住や産業を守護。内宮参拝前に立ち寄るのが正式。',action:'勾玉池の鯉に挨拶すると吉。外宮の参拝は左側通行が正式作法。'},
+  {id:19, name:'富士山本宮浅間大社',addr:'静岡県富士宮市宮町1-1',       lat:35.2272, lng:138.6108, ben:['縁結び','安産','健康'],      desc:'全国約1300社の浅間神社の総本社。富士山を御神体とする格式高い大社。',  action:'御神水「湧玉池」の水を飲むか手を清めると特別な浄化効果があるとされる。'},
+  {id:20, name:'熊野那智大社', addr:'和歌山県東牟婁郡那智勝浦町那智山1',lat:33.6708, lng:135.8869, ben:['縁結び','厄除け','長寿'],    desc:'熊野三山のひとつ。日本一の落差を誇る那智の滝がご神体。世界遺産。',     action:'那智の滝に打たれるような気持ちで参拝するとエネルギーが一新される。'},
+];
+
+const GOSHUIN_DATA = [
+  {name:'明治神宮', ga:'ga1', icon:'🌿', locked:false},
+  {name:'伏見稲荷', ga:'ga4', icon:'🦊', locked:true},
+  {name:'出雲大社', ga:'ga2', icon:'🌊', locked:true},
+  {name:'北野天満宮',ga:'ga6', icon:'✏️', locked:true},
+  {name:'住吉大社', ga:'ga5', icon:'🌊', locked:true},
+  {name:'春日大社', ga:'ga3', icon:'🦌', locked:true},
+  {name:'鶴岡八幡', ga:'ga7', icon:'🏹', locked:true},
+  {name:'寒川神社', ga:'ga8', icon:'⭕', locked:true},
+];
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let map = null;
+let originLat = 35.6812, originLng = 139.7671; // 起点（自宅 or 現在地）
+let homeLat = null, homeLng = null;
+let homeMarker = null;
+let pickerMap = null;
+
+let profiles = [];
+let activeIdx = -1;
+let selectedDir = null;
+let period = 'day';
+let radius = 15;
+let activeBenefits = new Set();
+
+let mapMarkers = [];
+let dirLayers  = [];
+let sectors    = [];
+let currentShrine = null;
+
+let visits = [];
+
+// ════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  setupTabs();
+  setupPeriodTabs();
+  setupForms();
+  setupBenefits();
+  buildGoshuin();
+  initMap();
+  calcCountdown();
+  // Demo profile
+  profiles = [{name:'デモユーザー', year:1990, month:6, day:15, gender:'male', emoji:'🧑', star:9}];
+  activeIdx = 0;
+  renderProfiles();
+  recalc();
+});
+
+// ════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════
+function setupTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+function setupPeriodTabs() {
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      period = btn.dataset.period;
+      document.getElementById('eho-banner').style.display = period === 'eho' ? 'block' : 'none';
+      recalc();
+    });
+  });
+}
+
+// ════════════════════════════════════════════════
+// FORMS
+// ════════════════════════════════════════════════
+function setupForms() {
+  const fy = document.getElementById('f-year');
+  const fm = document.getElementById('f-month');
+  const fd = document.getElementById('f-day');
+  const ty = document.getElementById('target-year');
+  for (let y = 2010; y >= 1920; y--) fy.innerHTML += `<option value="${y}">${y}年</option>`;
+  for (let m = 1; m <= 12; m++) fm.innerHTML += `<option value="${m}">${m}月</option>`;
+  for (let d = 1; d <= 31; d++) fd.innerHTML += `<option value="${d}">${d}日</option>`;
+  const cur = new Date().getFullYear();
+  for (let y = cur; y <= cur + 5; y++) ty.innerHTML += `<option value="${y}">${y}年</option>`;
+  fy.value = 1990; fm.value = 1; fd.value = 1;
+
+  document.getElementById('radius-input').addEventListener('input', e => {
+    radius = +e.target.value;
+    document.getElementById('radius-label').textContent = radius + ' km';
+    if (profiles[activeIdx]) drawSectors(profiles[activeIdx].star);
+    if (selectedDir) { drawDirLine(); findShrines(); }
+  });
+}
+
+function toggleAddForm() {
+  const f = document.getElementById('add-form');
+  f.style.display = f.style.display === 'flex' ? 'none' : 'flex';
+  if (f.style.display === 'flex') document.getElementById('f-name').focus();
+}
+
+function addProfile() {
+  const name   = document.getElementById('f-name').value.trim() || '名無し';
+  const year   = +document.getElementById('f-year').value;
+  const month  = +document.getElementById('f-month').value;
+  const day    = +document.getElementById('f-day').value;
+  const gender = document.getElementById('f-gender').value;
+  const emoji  = document.getElementById('f-emoji').value;
+  const star   = calcKyusei(year, month, day, gender);
+  profiles.push({name, year, month, day, gender, emoji, star});
+  activeIdx = profiles.length - 1;
+  renderProfiles();
+  recalc();
+  document.getElementById('add-form').style.display = 'none';
+  document.getElementById('f-name').value = '';
+  showToast(`✦ ${name}さんの本命星：${STAR_NAMES[star]}`);
+}
+
+// ════════════════════════════════════════════════
+// BENEFITS
+// ════════════════════════════════════════════════
+function setupBenefits() {
+  const f = document.getElementById('benefit-filter');
+  BENEFITS.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'ben-btn';
+    btn.textContent = b;
+    btn.addEventListener('click', () => {
+      activeBenefits.has(b) ? activeBenefits.delete(b) : activeBenefits.add(b);
+      btn.classList.toggle('on', activeBenefits.has(b));
+      findShrines();
+    });
+    f.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════════
+// KYUSEI
+// ════════════════════════════════════════════════
+function calcKyusei(year, month, day, gender) {
+  let y = year;
+  if (month < 2 || (month === 2 && day < 4)) y--;
+  let ms = 9 - (((y - 1900) % 9 + 9) % 9);
+  if (ms <= 0) ms += 9;
+  return gender === 'female' ? (((ms + 2) % 9) || 9) : ms;
+}
+
+function getRating(key, star) {
+  const l = LUCKY[star] || LUCKY[1];
+  if (l.gbad.includes(key))  return 'gbad';
+  if (key === l.great[0])    return 'great';
+  if (l.good.includes(key))  return 'good';
+  return 'bad';
+}
+
+// ════════════════════════════════════════════════
+// PROFILES
+// ════════════════════════════════════════════════
+function renderProfiles() {
+  const list = document.getElementById('profile-list');
+  list.innerHTML = '';
+  profiles.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'profile-item' + (i === activeIdx ? ' active' : '');
+    div.innerHTML = `
+      <div class="p-avatar">${p.emoji}</div>
+      <div class="p-info">
+        <div class="p-name">${p.name}</div>
+        <div class="p-sub">${p.year}/${p.month}/${p.day} · ${p.gender === 'male' ? '男性' : '女性'}</div>
+        <div class="p-star">✦ ${STAR_NAMES[p.star]}</div>
+      </div>`;
+    div.addEventListener('click', () => { activeIdx = i; renderProfiles(); recalc(); });
+    list.appendChild(div);
+  });
+}
+
+function recalc() {
+  if (activeIdx < 0 || !profiles[activeIdx]) return;
+  const p = profiles[activeIdx];
+  document.getElementById('star-name').textContent = `${p.name}さん ─ ${STAR_NAMES[p.star]}`;
+  document.getElementById('star-desc').textContent = STAR_DESC[p.star];
+  renderDirChips(p.star);
+  drawCompass(p.star);
+  drawSectors(p.star);
+  if (selectedDir) findShrines();
+}
+
+// ════════════════════════════════════════════════
+// COMPASS SVG
+// ════════════════════════════════════════════════
+function drawCompass(star) {
+  const svg = document.getElementById('compass-svg');
+  const cx = 100, cy = 100, R = 80;
+  let h = '';
+  DIRS.forEach(d => {
+    const r = getRating(d.key, star);
+    const fill = {great:'rgba(200,146,42,.35)', good:'rgba(42,138,90,.25)', bad:'rgba(100,90,80,.15)', gbad:'rgba(176,48,24,.3)'}[r];
+    const s = (d.deg - 22.5 - 90) * Math.PI / 180;
+    const e = (d.deg + 22.5 - 90) * Math.PI / 180;
+    h += `<path d="M${cx},${cy}L${cx+R*Math.cos(s)},${cy+R*Math.sin(s)}A${R},${R} 0 0,1 ${cx+R*Math.cos(e)},${cy+R*Math.sin(e)}Z" fill="${fill}"/>`;
+  });
+  h += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(200,146,42,.3)" stroke-width="1.5"/>`;
+  h += `<circle cx="${cx}" cy="${cy}" r="28" fill="none" stroke="rgba(200,146,42,.3)" stroke-width="1"/>`;
+  for (let a = 0; a < 360; a += 45) {
+    const rad = (a - 90) * Math.PI / 180;
+    h += `<line x1="${cx+28*Math.cos(rad)}" y1="${cy+28*Math.sin(rad)}" x2="${cx+R*Math.cos(rad)}" y2="${cy+R*Math.sin(rad)}" stroke="rgba(200,146,42,.2)" stroke-width=".8"/>`;
+  }
+  DIRS.forEach(d => {
+    const r = getRating(d.key, star);
+    const col = {great:'#e8c96a', good:'#6adb9a', bad:'#8a8070', gbad:'#e08060'}[r];
+    const rad = (d.deg - 90) * Math.PI / 180;
+    h += `<text x="${cx+93*Math.cos(rad)}" y="${cy+93*Math.sin(rad)+4}" text-anchor="middle" font-size="9" fill="${col}" font-family="Noto Serif JP" font-weight="${r==='great'?'bold':'normal'}">${d.label[0]}</text>`;
+  });
+  if (selectedDir) {
+    const rad = (selectedDir.deg - 90) * Math.PI / 180;
+    h += `<line x1="${cx}" y1="${cy}" x2="${cx+68*Math.cos(rad)}" y2="${cy+68*Math.sin(rad)}" stroke="#b03018" stroke-width="2.5" stroke-linecap="round"/>`;
+    h += `<circle cx="${cx+68*Math.cos(rad)}" cy="${cy+68*Math.sin(rad)}" r="3.5" fill="#b03018"/>`;
+  }
+  h += `<circle cx="${cx}" cy="${cy}" r="5" fill="#c9921e"/><circle cx="${cx}" cy="${cy}" r="2" fill="#0e0b07"/>`;
+  svg.innerHTML = h;
+}
+
+// ════════════════════════════════════════════════
+// DIR CHIPS
+// ════════════════════════════════════════════════
+function renderDirChips(star) {
+  const g = document.getElementById('dir-grid');
+  g.innerHTML = '';
+  DIRS.forEach(d => {
+    const r = getRating(d.key, star);
+    const tagMap  = {great:'大吉', good:'吉', gbad:'大凶'};
+    const iconMap  = {great:'✨', good:'🌿', bad:'🌫️', gbad:'⚠️'};
+    const div = document.createElement('div');
+    div.className = 'dir-chip ' + r + (selectedDir && selectedDir.key === d.key ? ' sel' : '');
+    div.innerHTML = (tagMap[r] ? `<div class="tag">${tagMap[r]}</div>` : '')
+      + `<div class="d-ico">${iconMap[r]}</div><div class="d-name">${d.label}</div>`;
+    div.addEventListener('click', () => selectDir(d));
+    g.appendChild(div);
+  });
+}
+
+function selectDir(d) {
+  selectedDir = d;
+  if (profiles[activeIdx]) {
+    renderDirChips(profiles[activeIdx].star);
+    drawCompass(profiles[activeIdx].star);
+  }
+  drawDirLine();
+  findShrines();
+  document.getElementById('map-bar').textContent = `🧭 ${d.label}方位（${d.el}の気）`;
+}
+
+// ════════════════════════════════════════════════
+// MAP
+// ════════════════════════════════════════════════
+function initMap() {
+  map = L.map('map', {zoomControl: false});
+  L.control.zoom({position: 'bottomright'}).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {
+    attribution: '© CARTO © OpenStreetMap', maxZoom: 19
+  }).addTo(map);
+
+  // 現在地を取得、失敗したらデフォルト（東京）で表示
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => { originLat = pos.coords.latitude; originLng = pos.coords.longitude; setupMapView(); },
+      ()  => setupMapView()
+    );
+  } else {
+    setupMapView();
+  }
+}
+
+function setupMapView() {
+  map.setView([originLat, originLng], 11);
+  placeUserMarker();
+  if (profiles[activeIdx]) drawSectors(profiles[activeIdx].star);
+}
+
+function placeUserMarker() {
+  L.divIcon; // ensure Leaflet loaded
+  const icon = L.divIcon({
+    html: `<div style="width:16px;height:16px;background:#c9921e;border:3px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(200,146,42,.8),0 0 0 5px rgba(200,146,42,.15)"></div>`,
+    className: '', iconAnchor: [8, 8]
+  });
+  L.marker([originLat, originLng], {icon, zIndexOffset: 1000})
+   .bindTooltip('現在地').addTo(map);
+}
+
+function drawSectors(star) {
+  sectors.forEach(l => map.removeLayer(l));
+  sectors = [];
+  const R = radius * 1000;
+  DIRS.forEach(d => {
+    const r = getRating(d.key, star);
+    const c = {
+      great: {fill:'rgba(200,146,42,.18)', stroke:'rgba(200,146,42,.55)'},
+      good:  {fill:'rgba(42,138,90,.12)',  stroke:'rgba(42,138,90,.4)'},
+      bad:   {fill:'rgba(80,70,60,.05)',   stroke:'rgba(80,70,60,.18)'},
+      gbad:  {fill:'rgba(176,48,24,.14)',  stroke:'rgba(176,48,24,.45)'},
+    }[r];
+    const pts = [[originLat, originLng]];
+    for (let a = d.deg - 22.5; a <= d.deg + 22.5; a += 5) {
+      const rad = a * Math.PI / 180;
+      pts.push([
+        originLat + (R / 111320) * Math.cos(rad),
+        originLng + (R / (111320 * Math.cos(originLat * Math.PI / 180))) * Math.sin(rad),
+      ]);
     }
+    pts.push([originLat, originLng]);
+    const poly = L.polygon(pts, {color: c.stroke, weight: 1.5, fillColor: c.fill, fillOpacity: 1}).addTo(map);
+    poly.on('click', () => selectDir(d));
+    sectors.push(poly);
+  });
+}
 
-    function updateView(type, el) {
-        document.querySelectorAll('.onayami-item').forEach(b => b.classList.remove('active'));
-        el.classList.add('active');
+function drawDirLine() {
+  dirLayers.forEach(l => map.removeLayer(l));
+  dirLayers = [];
+  if (!selectedDir) return;
+  const R = radius * 1000;
+  const rad = selectedDir.deg * Math.PI / 180;
+  const eLat = originLat + (R / 111320) * Math.cos(rad);
+  const eLng = originLng + (R / (111320 * Math.cos(originLat * Math.PI / 180))) * Math.sin(rad);
+  const star = profiles[activeIdx]?.star || 1;
+  const r = getRating(selectedDir.key, star);
+  const col = {great:'#c9921e', good:'#2a8a68', bad:'#6a6050', gbad:'#aa2222'}[r];
+  dirLayers.push(L.polyline([[originLat, originLng], [eLat, eLng]], {color: col, weight: 2, dashArray: '10,5', opacity: .9}).addTo(map));
+  dirLayers.push(L.circle([originLat, originLng], {radius: R, color: col, weight: 1, dashArray: '4,8', fill: false, opacity: .4}).addTo(map));
+}
 
-        const configs = {
-            'all': { title: "✨ 最大吉方ナビ", desc: `${myStar}のあなたと最も響き合う方位です。今日は特にエネルギーが強く、全ての運気が底上げされます。` },
-            'west': { title: "💰 金運・恋愛（七赤金星）", desc: "西の「実り」の気を吸収しましょう。参拝後の寄り道や楽しい食事が、さらに運を呼び込みます。" },
-            'se': { title: "🤝 結婚・人間関係（四緑木星）", desc: "南東は「風」を司ります。遠方からの便りや、滞っていた人間関係がスムーズに回り出す方位です。" },
-            'ne': { title: "🏔️ 転職・現状打破（八白土星）", desc: "北東は「変化」の象徴。今の環境を変えたいなら、この方位の神社で『節目』の祈りを捧げてください。" }
-        };
+// ════════════════════════════════════════════════
+// SHRINE SEARCH
+// ════════════════════════════════════════════════
+function findShrines() {
+  clearMarkers();
+  if (!selectedDir) return;
+  const R = radius * 1000;
+  let results = SHRINES.filter(s => {
+    const dlat = s.lat - originLat, dlng = s.lng - originLng;
+    const dist = Math.sqrt(dlat * dlat + dlng * dlng) * 111320;
+    if (dist > R || dist < 100) return false;
+    let bear = Math.atan2(dlng, dlat) * 180 / Math.PI;
+    if (bear < 0) bear += 360;
+    let diff = Math.abs(bear - selectedDir.deg);
+    if (diff > 180) diff = 360 - diff;
+    return diff <= 22.5;
+  }).sort((a, b) => {
+    const da = Math.sqrt((a.lat-originLat)**2+(a.lng-originLng)**2);
+    const db = Math.sqrt((b.lat-originLat)**2+(b.lng-originLng)**2);
+    return da - db;
+  });
+  if (activeBenefits.size > 0) results = results.filter(s => s.ben.some(b => activeBenefits.has(b)));
 
-        document.getElementById('fortune-title').innerText = configs[type].title;
-        document.getElementById('fortune-desc').innerText = configs[type].desc;
+  renderShrineList(results);
+  plotMarkers(results);
+  if (results.length > 0) {
+    map.fitBounds(L.latLngBounds([[originLat, originLng], ...results.map(s => [s.lat, s.lng])]), {padding: [50, 50]});
+  }
+}
 
-        // 方位を意識した地図の移動（シミュレーション）
-        const offsets = { 'all': [0.05, 0.05], 'west': [0, -0.05], 'se': [-0.05, 0.05], 'ne': [0.05, 0.05] };
-        map.panTo([homePos[0] + offsets[type][0], homePos[1] + offsets[type][1]]);
+function renderShrineList(shrines) {
+  const list = document.getElementById('shrine-list');
+  list.innerHTML = '';
+  if (!shrines.length) {
+    list.innerHTML = `<div class="empty-msg">⛩️<br><br><strong>${selectedDir?.label || ''}方位</strong> ${radius}km以内に<br>条件に合う神社が見つかりませんでした。<br>範囲を広げるか絞り込みを解除してください。</div>`;
+    return;
+  }
+  const dirBen = DIR_INFO[selectedDir.key]?.ben || [];
+  shrines.forEach(s => {
+    const dlat = s.lat - originLat, dlng = s.lng - originLng;
+    const km = (Math.sqrt(dlat*dlat+dlng*dlng)*111.32).toFixed(1);
+    const allBen = [...new Set([...s.ben, ...dirBen])].slice(0, 5);
+    const item = document.createElement('div');
+    item.className = 'sh-item';
+    item.innerHTML = `<div class="sh-name">⛩ ${s.name}</div>
+      <div class="sh-meta">📍 ${km}km · 🧭 ${selectedDir.label}方位</div>
+      <div class="sh-tags">${allBen.map((b,i) => `<span class="sh-tag${i<2?' hl':''}">${b}</span>`).join('')}</div>`;
+    item.addEventListener('click', () => focusShrine(s, item, allBen));
+    list.appendChild(item);
+  });
+}
+
+function plotMarkers(shrines) {
+  const dirBen = DIR_INFO[selectedDir?.key]?.ben || [];
+  shrines.forEach(s => {
+    const icon = L.divIcon({
+      html: `<div style="position:relative;width:36px;height:36px">
+        <div style="width:36px;height:36px;background:linear-gradient(135deg,#b03018,#7a1a10);border:2px solid rgba(255,255,255,.8);border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 3px 10px rgba(0,0,0,.5)"></div>
+        <span style="position:absolute;top:7px;left:8px;font-size:16px;transform:rotate(45deg)">⛩</span>
+      </div>`,
+      className: '', iconAnchor: [18, 36]
+    });
+    const allBen = [...new Set([...s.ben, ...dirBen])].slice(0, 5);
+    const m = L.marker([s.lat, s.lng], {icon}).addTo(map);
+    m.on('click', () => focusShrine(s, null, allBen));
+    mapMarkers.push(m);
+  });
+}
+
+function focusShrine(shrine, itemEl, benefits) {
+  currentShrine = shrine;
+  document.querySelectorAll('.sh-item').forEach(e => e.classList.remove('sel'));
+  if (itemEl) itemEl.classList.add('sel');
+  map.setView([shrine.lat, shrine.lng], 14);
+  showPopup(shrine, benefits);
+}
+
+function showPopup(s, benefits) {
+  document.getElementById('popup-name').textContent = s.name;
+  document.getElementById('popup-addr').textContent = '📍 ' + s.addr;
+  document.getElementById('popup-desc').textContent = s.desc;
+  document.getElementById('popup-action').textContent = '💡 ' + s.action;
+  const badge = document.getElementById('popup-badge');
+  if (selectedDir) { badge.textContent = `🧭 ${selectedDir.label}方位 · ${selectedDir.el}の気`; badge.style.display = 'block'; }
+  else badge.style.display = 'none';
+  document.getElementById('popup-tags').innerHTML = benefits.map(b => `<span class="p-tag">🌸 ${b}</span>`).join('');
+  document.getElementById('shrine-popup').classList.add('open');
+}
+
+function closePopup() {
+  document.getElementById('shrine-popup').classList.remove('open');
+  document.querySelectorAll('.sh-item').forEach(e => e.classList.remove('sel'));
+  currentShrine = null;
+}
+
+function clearMarkers() {
+  mapMarkers.forEach(m => map.removeLayer(m));
+  mapMarkers = [];
+  closePopup();
+}
+
+// ════════════════════════════════════════════════
+// CHECKIN
+// ════════════════════════════════════════════════
+function checkin() {
+  if (!currentShrine) return;
+  const s = currentShrine;
+  visits.unshift({name: s.name, dir: selectedDir?.label || '?', date: new Date().toLocaleDateString('ja-JP'), pts: 150});
+  updateStats();
+  renderVisitLog();
+  closePopup();
+  showToast(`⛩ ${s.name} チェックイン！御朱印GET ＋150pt`);
+}
+
+function updateStats() {
+  document.getElementById('stat-v').textContent = visits.length;
+  document.getElementById('stat-p').textContent = visits.reduce((a, v) => a + v.pts, 0);
+  document.getElementById('stat-d').textContent = new Set(visits.map(v => v.dir)).size;
+}
+
+function renderVisitLog() {
+  const el = document.getElementById('visit-log');
+  if (!visits.length) { el.innerHTML = '<div class="empty-msg" style="padding:14px">まだ参拝記録がありません</div>'; return; }
+  el.innerHTML = visits.map(v => `
+    <div class="visit-item">
+      <div class="visit-name">⛩ ${v.name}</div>
+      <div class="visit-sub">${v.date} · ${v.dir}方位 · ＋${v.pts}pt</div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════
+// GOSHUIN
+// ════════════════════════════════════════════════
+function buildGoshuin() {
+  const grid = document.getElementById('goshuin-grid');
+  GOSHUIN_DATA.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'g-card' + (t.locked ? '' : ' unlocked');
+    card.innerHTML = `<div class="g-art ${t.ga}">${t.icon}${t.locked ? '<div class="g-lock">🔒</div>' : ''}</div>
+      <div class="g-info"><div class="g-name">${t.name}</div><div class="g-date">${t.locked ? '未参拝' : '参拝済み ✦'}</div></div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ════════════════════════════════════════════════
+// OMIKUJI
+// ════════════════════════════════════════════════
+function drawOmikuji() {
+  const results = ['大吉','吉','中吉','小吉','末吉','凶'];
+  const forts   = ['大吉','中吉','小吉','末吉'];
+  const colors  = ['金色','深緑','紺色','朱色','白銀','翠色','紅','藍'];
+  const key = selectedDir?.key || 'SE';
+  const r = results[Math.floor(Math.random() * results.length)];
+  const rand = () => forts[Math.floor(Math.random() * 4)];
+  const el = document.getElementById('omi-result');
+  el.textContent = r;
+  el.style.transform = 'scale(1.3)';
+  el.style.color = r === '大吉' ? '#f5e4a8' : r === '凶' ? '#e08060' : 'var(--gold2)';
+  setTimeout(() => { el.style.transform = ''; }, 300);
+  document.getElementById('omi-msg').textContent = DIR_INFO[key]?.msg || '方位のエネルギーを感じながら行動せよ。';
+  document.getElementById('omi-love').textContent   = rand();
+  document.getElementById('omi-money').textContent  = rand();
+  document.getElementById('omi-work').textContent   = rand();
+  document.getElementById('omi-health').textContent = rand();
+  document.getElementById('omi-color').textContent  = colors[Math.floor(Math.random() * colors.length)];
+  const acts = OMI_MSGS[key];
+  document.getElementById('omi-action').textContent = acts[Math.floor(Math.random() * acts.length)];
+}
+
+// ════════════════════════════════════════════════
+// EHO
+// ════════════════════════════════════════════════
+function activateEho() {
+  const s = DIRS.find(d => d.key === 'S');
+  if (s) selectDir(s);
+  showToast('🔥 2026年恵方（南南東）の神社を表示中');
+}
+
+// ════════════════════════════════════════════════
+// HOME PIN
+// ════════════════════════════════════════════════
+function openHomeModal() {
+  document.getElementById('home-modal').classList.add('open');
+  document.getElementById('home-delete-row').style.display = homeLat ? 'block' : 'none';
+  updateHomePreview();
+  setTimeout(() => {
+    if (!pickerMap) {
+      pickerMap = L.map('home-picker-map', {zoomControl: true, attributionControl: false});
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {maxZoom:19}).addTo(pickerMap);
     }
+    pickerMap.setView([homeLat || originLat, homeLng || originLng], 15);
+    pickerMap.invalidateSize();
+  }, 50);
+}
+function closeHomeModal() { document.getElementById('home-modal').classList.remove('open'); }
+
+function setHomeFromMap() {
+  if (!pickerMap) return;
+  const c = pickerMap.getCenter();
+  applyHome(c.lat, c.lng);
+}
+function setHomeFromGPS() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p => applyHome(p.coords.latitude, p.coords.longitude), () => applyHome(originLat, originLng));
+  } else applyHome(originLat, originLng);
+}
+function applyHome(lat, lng) {
+  homeLat = lat; homeLng = lng;
+  originLat = lat; originLng = lng;
+  if (homeMarker) map.removeLayer(homeMarker);
+  const icon = L.divIcon({
+    html: `<div style="text-align:center"><div style="font-size:26px;line-height:1;filter:drop-shadow(0 2px 5px rgba(0,0,0,.7))">🏠</div><div style="background:rgba(12,9,5,.85);color:#e8c96a;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid rgba(200,146,42,.5);white-space:nowrap;margin-top:2px">自宅</div></div>`,
+    className: '', iconAnchor: [13, 32]
+  });
+  homeMarker = L.marker([lat, lng], {icon, zIndexOffset: 900}).bindTooltip('🏠 自宅').addTo(map);
+  map.setView([lat, lng], map.getZoom());
+  if (profiles[activeIdx]) drawSectors(profiles[activeIdx].star);
+  if (selectedDir) { drawDirLine(); findShrines(); }
+  // Update UI
+  document.getElementById('home-not-set').style.display  = 'none';
+  document.getElementById('home-set-badge').style.display = 'flex';
+  document.getElementById('badge-coord').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  document.getElementById('home-btn').classList.add('set');
+  document.getElementById('home-btn-lbl').textContent = '自宅設定済み';
+  closeHomeModal();
+  showToast('🏠 自宅をピン留めしました！');
+}
+function deleteHome() {
+  if (homeMarker) { map.removeLayer(homeMarker); homeMarker = null; }
+  homeLat = null; homeLng = null;
+  if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => { originLat = p.coords.latitude; originLng = p.coords.longitude; if(profiles[activeIdx]) drawSectors(profiles[activeIdx].star); }, () => {});
+  document.getElementById('home-not-set').style.display  = 'block';
+  document.getElementById('home-set-badge').style.display = 'none';
+  document.getElementById('home-btn').classList.remove('set');
+  document.getElementById('home-btn-lbl').textContent = '自宅を設定';
+  closeHomeModal();
+  showToast('🗑 自宅ピンを削除しました');
+}
+function updateHomePreview() {
+  const el = document.getElementById('home-preview');
+  if (homeLat) { el.textContent = `📍 ${homeLat.toFixed(5)}, ${homeLng.toFixed(5)}`; el.style.display = 'block'; }
+  else el.style.display = 'none';
+}
+
+// ════════════════════════════════════════════════
+// SHARE
+// ════════════════════════════════════════════════
+function openShareModal() {
+  const dir = selectedDir ? selectedDir.label + '方位' : '吉方位';
+  const shrine = currentShrine?.name || '最強パワースポット';
+  document.getElementById('share-title').textContent = dir + '参拝';
+  document.getElementById('share-subtitle').textContent = shrine;
+  document.getElementById('share-text').innerHTML = `🧭 ${dir}の「${shrine}」を参拝！<br>開運コンパスで見つけた今日一番のパワースポットです。`;
+  document.getElementById('share-modal').classList.add('open');
+}
+function closeShareModal() { document.getElementById('share-modal').classList.remove('open'); }
+function shareX() {
+  const dir = selectedDir ? selectedDir.label : '吉';
+  const text = `🧭 ${dir}方位参拝！「${currentShrine?.name || 'パワースポット'}」で開運祈願しました✨\n#開運コンパス #吉方位 #神社巡り`;
+  window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(text));
+  closeShareModal();
+}
+
+// ════════════════════════════════════════════════
+// COUNTDOWN
+// ════════════════════════════════════════════════
+function calcCountdown() {
+  const target = new Date('2026-05-10');
+  const days = Math.ceil((target - new Date()) / 86400000);
+  document.getElementById('countdown-body').textContent = `次の天赦日×一粒万倍日まで あと ${days} 日（2026年5月10日）`;
+}
+
+// ════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
 </script>
 
 </body>
