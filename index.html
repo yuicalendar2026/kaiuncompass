@@ -3,266 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>開運コンパス PROTOTYPE</title>
+    <title>開運コンパス - 自宅ピン留め版</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         :root {
-            /* 画像に基づいたカラーパレット */
-            --bg-color: #f4f1ea; /* 和紙のような落ち着いた白 */
-            --main-deep-blue: #101c31; /* 深い青 */
-            --gold-gradient: linear-gradient(135deg, #d4af37 0%, #fcf4d9 50%, #b8942a 100%);
-            --gold-solid: #d4af37;
-            --text-on-dark: #fcf4d9;
-            --text-on-light: #333;
-            --shadow: 0 10px 30px rgba(0,0,0,0.15);
+            --main-deep-blue: #101c31;
+            --gold: #d4af37;
+            --home-blue: #3498db;
         }
-
-        body {
-            font-family: 'Times New Roman', Times, serif, 'Hiragino Mincho ProN', serif; /* 明朝体で和の雰囲気を */
-            background-color: var(--bg-color);
-            color: var(--text-on-light);
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow-x: hidden;
-        }
-
-        /* ヘッダー：荘厳な雰囲気 */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #f4f1ea; }
         header {
             background: linear-gradient(180deg, var(--main-deep-blue) 0%, #1a2a44 100%);
-            color: var(--text-on-dark);
-            width: 100%;
-            padding: 25px 0;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            border-bottom: 2px solid var(--gold-solid);
+            color: #fcf4d9; padding: 15px; text-align: center; border-bottom: 2px solid var(--gold);
+            position: relative; z-index: 1000;
+        }
+        #map { width: 100%; height: calc(100% - 180px); z-index: 1; }
+        
+        /* 自宅から伸びる方位線のオーバーレイ */
+        .lucky-beam {
+            position: absolute; width: 2000px; height: 2000px;
+            background: conic-gradient(from 120deg, rgba(212, 175, 55, 0.25) 0deg 60deg, transparent 60deg 360deg);
+            pointer-events: none; z-index: 400; transform-origin: center;
         }
 
-        .app-title {
-            font-size: 1.8rem;
-            font-weight: bold;
-            background: var(--gold-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 5px;
+        .info-panel {
+            position: fixed; bottom: 0; width: 100%; background: white;
+            border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.2); z-index: 1000;
         }
-
-        .date-badge {
-            font-family: sans-serif;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-
-        /* メイン：羅盤エリア */
-        .compass-section {
-            position: relative;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            margin: 40px 0;
-        }
-
-        .compass-container {
-            position: relative;
-            width: 320px;
-            height: 320px;
-            background: #fff;
-            border-radius: 50%;
-            box-shadow: var(--shadow);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border: 4px solid #fff;
-        }
-
-        /* 吉方位への光の帯（ coninc-gradientで再現） */
-        .kippo-beam {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: conic-gradient(
-                from 120deg, /* 南東方向 */
-                rgba(212, 175, 55, 0.6) 0deg 60deg,
-                transparent 60deg 360deg
-            );
-            filter: blur(10px);
-            z-index: 1;
-        }
-
-        /* 荘厳な羅盤（SVG） */
-        .compass-svg {
-            position: relative;
-            width: 90%;
-            height: 90%;
-            z-index: 2;
-        }
-
-        /* 神社カード：以前の画像の雰囲気に */
-        .jinja-card {
-            background: white;
-            width: 85%;
-            max-width: 380px;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 30px;
-            box-shadow: var(--shadow);
-            border-top: 4px solid var(--gold-solid);
-            position: relative;
-        }
-
-        .jinja-card h2 {
-            margin: 0 0 10px 0;
-            font-size: 1.4rem;
-            color: var(--main-deep-blue);
-        }
-
-        .go-riyoku {
-            display: inline-block;
-            background: var(--gold-gradient);
-            color: var(--main-deep-blue);
-            font-weight: bold;
-            font-size: 0.8rem;
-            padding: 3px 10px;
-            border-radius: 15px;
-            margin-bottom: 10px;
-        }
-
-        .distance {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-family: sans-serif;
-            color: var(--gold-solid);
-            font-weight: bold;
-        }
-
-        /* 下部パネル：Image 0の下部UIを再現 */
-        .bottom-panel {
-            width: 100%;
-            background: white;
-            padding: 20px;
-            border-radius: 20px 20px 0 0;
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 80px; /* footerナビのスペース */
-        }
-
-        .goshuin-info {
-            width: 90%;
-            max-width: 360px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-family: sans-serif;
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 10px;
-        }
-
-        .goshuin-progress {
-            width: 90%;
-            max-width: 360px;
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: var(--gold-gradient);
-            width: 33%; /* 4/12 */
-            border-radius: 4px;
-        }
-
-        /* フッターナビゲーション */
-        .footer-nav {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background: var(--main-deep-blue);
-            display: flex;
-            justify-content: space-around;
-            padding: 15px 0;
-            border-top: 1px solid var(--gold-solid);
-            z-index: 10;
-        }
-
-        .nav-item {
-            font-family: sans-serif;
-            font-size: 0.75rem;
-            text-align: center;
-            color: var(--text-on-dark);
-            opacity: 0.7;
-        }
-
-        .nav-item.active {
-            opacity: 1;
-            color: var(--gold-solid);
-        }
-
+        .jinja-name { font-size: 1.1rem; font-weight: bold; color: var(--main-deep-blue); }
+        .home-addr { font-size: 0.8rem; color: var(--home-blue); margin-top: 5px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="app-title">開運コンパス</div>
-    <div class="date-badge">2026年3月5日 己卯日 (最強開運日)</div>
+    <div style="font-weight: bold; font-size: 1.2rem; color: var(--gold);">開運コンパス</div>
+    <div style="font-size: 0.8rem;">自宅を基点に吉方位を測定中</div>
 </header>
 
-<div class="compass-section">
-    <div class="compass-container">
-        <div class="kippo-beam"></div>
-        <svg class="compass-svg" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="48" fill="none" stroke="#d4af37" stroke-width="0.5"/>
-            <polygon points="50,5 85,20 95,50 85,80 50,95 15,80 5,50 15,20" fill="#fcf4d9" stroke="#d4af37" stroke-width="1"/>
-            
-            <text x="50" y="15" font-size="8" text-anchor="middle" fill="#999">北</text>
-            <text x="85" y="53" font-size="8" text-anchor="middle" fill="#999">東</text>
-            <text x="50" y="90" font-size="8" text-anchor="middle" fill="#999">南</text>
-            <text x="15" y="53" font-size="8" text-anchor="middle" fill="#999">西</text>
-            
-            <text x="75" y="78" font-size="9" text-anchor="middle" fill="#d4af37" font-weight="bold">南東(吉)</text>
-            
-            <circle cx="50" cy="50" r="8" fill="#101c31" stroke="#d4af37" stroke-width="1"/>
-            <line x1="50" y1="50" x2="72" y2="72" stroke="#d4af37" stroke-width="3" stroke-linecap="round" />
-            <circle cx="50" cy="50" r="2" fill="#d4af37"/>
-        </svg>
-    </div>
-</div>
+<div id="map"></div>
 
-<div class="jinja-card">
-    <span class="distance">1.2km</span>
-    <h2>甲山八幡宮</h2>
-    <span class="go-riyoku">縁結び</span>
-    <p style="font-size: 0.95rem; color: #555; line-height: 1.5; margin-top: 5px;">
-        本日は「丙午」の火の気が満ちる特別な日。午の刻（11時〜13時）にお水を汲むと勝負運が最高潮に。
+<div class="info-panel">
+    <div class="jinja-name">⛩️ 甲山八幡宮 (自宅から南東)</div>
+    <div class="home-addr">🏠 自宅：兵庫県西宮市名塩さくら台</div>
+    <p style="font-size: 0.85rem; color: #666; margin: 10px 0;">
+        自宅からの距離：約10.5km<br>
+        本日は「天赦日」。自宅から東南へ向かうと良縁に恵まれます。
     </p>
 </div>
 
-<div class="bottom-panel">
-    <div class="goshuin-info">
-        <span>デジタル御朱印帳</span>
-        <span style="font-weight: bold; color: #101c31;">4 / 12</span>
-    </div>
-    <div class="goshuin-progress">
-        <div class="progress-bar"></div>
-    </div>
-</div>
-
-<nav class="footer-nav">
-    <div class="nav-item active">🧭<br>方位</div>
-    <div class="nav-item">⛩️<br>神社まいり</div>
-    <div class="nav-item">📜<br>御朱印帳</div>
-    <div class="nav-item">⚙️<br>設定</div>
-</nav>
-
 <script>
-    console.log("開運コンパス PROTOTYPE：以前の画像のビジュアルに近づけました。");
+    // 自宅の座標 (西宮市名塩さくら台)
+    const homePos = [34.839, 135.278];
+    const targetPos = [34.755, 135.350]; // 目的地（甲山付近）
+
+    const map = L.map('map', { zoomControl: false }).setView(homePos, 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // 1. 自宅ピン (青)
+    const homeIcon = L.divIcon({
+        html: '<div style="font-size: 30px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🏠</div>',
+        className: 'custom-icon', iconSize: [40, 40], iconAnchor: [20, 20]
+    });
+    L.marker(homePos, {icon: homeIcon}).addTo(map).bindPopup("<b>私の自宅</b><br>運気の基点です");
+
+    // 2. 目的地ピン (⛩️)
+    const jinjaIcon = L.divIcon({
+        html: '<div style="font-size: 30px;">⛩️</div>',
+        className: 'custom-icon', iconSize: [40, 40], iconAnchor: [20, 20]
+    });
+    L.marker(targetPos, {icon: jinjaIcon}).addTo(map).bindPopup("甲山八幡宮");
+
+    // 3. 自宅からの方位線を地図上に描画
+    // Leafletの座標を画面上のピクセルに変換して光を重ねる処理
+    const overlay = L.SVG.overlay = function() {}; // 簡易的な演出用
+
+    // 地図のズームや移動に合わせて方位線の位置を調整
+    function updateBeam() {
+        const pixelHome = map.latLngToContainerPoint(homePos);
+        // 本来はここにCanvas等で描画するが、今回は概念として中心に自宅を据える
+    }
+    map.on('move', updateBeam);
 </script>
 
 </body>
