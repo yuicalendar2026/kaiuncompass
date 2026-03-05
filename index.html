@@ -3,194 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>開運コンパス - 神社巡りエディション</title>
+    <title>開運コンパス PROTOTYPE</title>
     <style>
         :root {
-            --main-blue: #1a2a44;
-            --gold: #d4af37;
-            --light-gold: #fcf4d9;
-            --text-color: #333;
+            /* 画像に基づいたカラーパレット */
+            --bg-color: #f4f1ea; /* 和紙のような落ち着いた白 */
+            --main-deep-blue: #101c31; /* 深い青 */
+            --gold-gradient: linear-gradient(135deg, #d4af37 0%, #fcf4d9 50%, #b8942a 100%);
+            --gold-solid: #d4af37;
+            --text-on-dark: #fcf4d9;
+            --text-on-light: #333;
+            --shadow: 0 10px 30px rgba(0,0,0,0.15);
         }
 
         body {
-            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
-            background-color: #f8f5f0;
-            color: var(--text-color);
+            font-family: 'Times New Roman', Times, serif, 'Hiragino Mincho ProN', serif; /* 明朝体で和の雰囲気を */
+            background-color: var(--bg-color);
+            color: var(--text-on-light);
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-x: hidden;
         }
 
-        /* ヘッダー：最強開運日演出 */
+        /* ヘッダー：荘厳な雰囲気 */
         header {
-            background: linear-gradient(135deg, var(--main-blue), #2c3e50);
-            color: white;
+            background: linear-gradient(180deg, var(--main-deep-blue) 0%, #1a2a44 100%);
+            color: var(--text-on-dark);
             width: 100%;
-            padding: 20px 0;
+            padding: 25px 0;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            border-bottom: 2px solid var(--gold-solid);
+        }
+
+        .app-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
         }
 
         .date-badge {
-            background-color: var(--gold);
-            color: var(--main-blue);
-            font-weight: bold;
-            padding: 4px 12px;
-            border-radius: 20px;
+            font-family: sans-serif;
             font-size: 0.9rem;
-            margin-bottom: 5px;
-            display: inline-block;
+            opacity: 0.8;
         }
 
-        /* メインマップエリア */
-        .map-container {
+        /* メイン：羅盤エリア */
+        .compass-section {
             position: relative;
-            width: 340px;
-            height: 340px;
-            margin: 30px auto;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin: 40px 0;
+        }
+
+        .compass-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
             background: #fff;
             border-radius: 50%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
-            border: 8px solid white;
+            border: 4px solid #fff;
         }
 
-        /* 羅盤（コンパス）の背景アニメーション */
-        .compass-bg {
+        /* 吉方位への光の帯（ coninc-gradientで再現） */
+        .kippo-beam {
             position: absolute;
             width: 100%;
             height: 100%;
+            border-radius: 50%;
             background: conic-gradient(
-                from 135deg, 
-                rgba(212, 175, 55, 0.4) 0deg 45deg, 
-                transparent 45deg 360deg
+                from 120deg, /* 南東方向 */
+                rgba(212, 175, 55, 0.6) 0deg 60deg,
+                transparent 60deg 360deg
             );
-            animation: pulse 3s infinite ease-in-out;
+            filter: blur(10px);
+            z-index: 1;
         }
 
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 0.8; }
-            100% { opacity: 0.5; }
-        }
-
-        .compass-needle {
+        /* 荘厳な羅盤（SVG） */
+        .compass-svg {
             position: relative;
-            width: 280px;
+            width: 90%;
+            height: 90%;
             z-index: 2;
         }
 
-        /* 神社カード */
-        .card {
+        /* 神社カード：以前の画像の雰囲気に */
+        .jinja-card {
             background: white;
-            width: 90%;
-            max-width: 400px;
-            border-radius: 15px;
+            width: 85%;
+            max-width: 380px;
+            border-radius: 12px;
             padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            border-left: 5px solid var(--gold);
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            border-top: 4px solid var(--gold-solid);
+            position: relative;
         }
 
-        .card h2 {
+        .jinja-card h2 {
             margin: 0 0 10px 0;
-            font-size: 1.2rem;
-            color: var(--main-blue);
+            font-size: 1.4rem;
+            color: var(--main-deep-blue);
         }
 
-        .tag {
+        .go-riyoku {
+            display: inline-block;
+            background: var(--gold-gradient);
+            color: var(--main-deep-blue);
+            font-weight: bold;
             font-size: 0.8rem;
-            background: var(--light-gold);
-            color: #8a6d1d;
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin-right: 5px;
+            padding: 3px 10px;
+            border-radius: 15px;
+            margin-bottom: 10px;
         }
 
-        /* 下部ナビゲーション風 */
-        .footer-nav {
-            position: fixed;
-            bottom: 0;
+        .distance {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-family: sans-serif;
+            color: var(--gold-solid);
+            font-weight: bold;
+        }
+
+        /* 下部パネル：Image 0の下部UIを再現 */
+        .bottom-panel {
             width: 100%;
             background: white;
+            padding: 20px;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
             display: flex;
-            justify-content: space-around;
-            padding: 15px 0;
-            border-top: 1px solid #eee;
-            z-index: 10;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 80px; /* footerナビのスペース */
         }
 
-        .nav-item {
-            font-size: 0.7rem;
-            text-align: center;
-            color: #999;
-        }
-
-        .nav-item.active {
-            color: var(--gold);
+        .goshuin-info {
+            width: 90%;
+            max-width: 360px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: sans-serif;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
         }
 
         .goshuin-progress {
             width: 90%;
-            max-width: 400px;
+            max-width: 360px;
+            height: 8px;
             background: #e0e0e0;
-            height: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
+            border-radius: 4px;
+            overflow: hidden;
         }
 
         .progress-bar {
-            background: var(--gold);
-            width: 33%;
             height: 100%;
-            border-radius: 5px;
+            background: var(--gold-gradient);
+            width: 33%; /* 4/12 */
+            border-radius: 4px;
         }
+
+        /* フッターナビゲーション */
+        .footer-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: var(--main-deep-blue);
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 0;
+            border-top: 1px solid var(--gold-solid);
+            z-index: 10;
+        }
+
+        .nav-item {
+            font-family: sans-serif;
+            font-size: 0.75rem;
+            text-align: center;
+            color: var(--text-on-dark);
+            opacity: 0.7;
+        }
+
+        .nav-item.active {
+            opacity: 1;
+            color: var(--gold-solid);
+        }
+
     </style>
 </head>
 <body>
 
 <header>
-    <div class="date-badge">2026年3月5日 己卯日</div>
-    <div style="font-size: 1.4rem; font-weight: bold;">天赦日 × 一粒万倍日</div>
-    <div style="font-size: 0.9rem; opacity: 0.8;">最強開運日につき全方位の気が満ちています</div>
+    <div class="app-title">開運コンパス</div>
+    <div class="date-badge">2026年3月5日 己卯日 (最強開運日)</div>
 </header>
 
-<div class="map-container">
-    <div class="compass-bg"></div>
-    <svg class="compass-needle" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="45" fill="none" stroke="#d4af37" stroke-width="0.5"/>
-        <text x="50" y="12" font-size="6" text-anchor="middle" fill="#999">北</text>
-        <text x="88" y="52" font-size="6" text-anchor="middle" fill="#d4af37" font-weight="bold">東(吉)</text>
-        <text x="50" y="92" font-size="6" text-anchor="middle" fill="#999">南</text>
-        <text x="12" y="52" font-size="6" text-anchor="middle" fill="#999">西</text>
-        <line x1="50" y1="50" x2="75" y2="75" stroke="#d4af37" stroke-width="2" stroke-linecap="round" />
-        <circle cx="50" cy="50" r="3" fill="#1a2a44"/>
-    </svg>
+<div class="compass-section">
+    <div class="compass-container">
+        <div class="kippo-beam"></div>
+        <svg class="compass-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="48" fill="none" stroke="#d4af37" stroke-width="0.5"/>
+            <polygon points="50,5 85,20 95,50 85,80 50,95 15,80 5,50 15,20" fill="#fcf4d9" stroke="#d4af37" stroke-width="1"/>
+            
+            <text x="50" y="15" font-size="8" text-anchor="middle" fill="#999">北</text>
+            <text x="85" y="53" font-size="8" text-anchor="middle" fill="#999">東</text>
+            <text x="50" y="90" font-size="8" text-anchor="middle" fill="#999">南</text>
+            <text x="15" y="53" font-size="8" text-anchor="middle" fill="#999">西</text>
+            
+            <text x="75" y="78" font-size="9" text-anchor="middle" fill="#d4af37" font-weight="bold">南東(吉)</text>
+            
+            <circle cx="50" cy="50" r="8" fill="#101c31" stroke="#d4af37" stroke-width="1"/>
+            <line x1="50" y1="50" x2="72" y2="72" stroke="#d4af37" stroke-width="3" stroke-linecap="round" />
+            <circle cx="50" cy="50" r="2" fill="#d4af37"/>
+        </svg>
+    </div>
 </div>
 
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>甲山八幡宮</h2>
-        <span style="color: var(--gold); font-weight: bold;">南東へ 1.2km</span>
-    </div>
-    <div>
-        <span class="tag">縁結び</span>
-        <span class="tag">お水取り可</span>
-    </div>
-    <p style="font-size: 0.9rem; color: #666; line-height: 1.4;">
+<div class="jinja-card">
+    <span class="distance">1.2km</span>
+    <h2>甲山八幡宮</h2>
+    <span class="go-riyoku">縁結び</span>
+    <p style="font-size: 0.95rem; color: #555; line-height: 1.5; margin-top: 5px;">
         本日は「丙午」の火の気が満ちる特別な日。午の刻（11時〜13時）にお水を汲むと勝負運が最高潮に。
     </p>
 </div>
 
-<div style="width: 90%; max-width: 400px; margin-bottom: 100px;">
-    <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
-        <span>デジタル御朱印コレクション</span>
-        <span>4 / 12</span>
+<div class="bottom-panel">
+    <div class="goshuin-info">
+        <span>デジタル御朱印帳</span>
+        <span style="font-weight: bold; color: #101c31;">4 / 12</span>
     </div>
     <div class="goshuin-progress">
         <div class="progress-bar"></div>
@@ -199,14 +256,13 @@
 
 <nav class="footer-nav">
     <div class="nav-item active">🧭<br>方位</div>
-    <div class="nav-item">⛩️<br>神社</div>
-    <div class="nav-item">📜<br>御朱印</div>
+    <div class="nav-item">⛩️<br>神社まいり</div>
+    <div class="nav-item">📜<br>御朱印帳</div>
     <div class="nav-item">⚙️<br>設定</div>
 </nav>
 
 <script>
-    // ここに位置情報取得や方位計算のロジックを追加可能
-    console.log("開運コンパス起動：2026年3月5日 最強開運日モード");
+    console.log("開運コンパス PROTOTYPE：以前の画像のビジュアルに近づけました。");
 </script>
 
 </body>
