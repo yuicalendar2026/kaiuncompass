@@ -1,28 +1,198 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-<meta name="viewport" content="initial-scale=1.0">
-<style>
-#map{height:100vh}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>吉方位まいりガイド 2026</title>
+    <style>
+        :root {
+            --japan-blue: #001f41; /* 勝色 */
+            --gold: #d4af37;
+            --danger: #e63946;
+            --good: #457b9d;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--japan-blue);
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--gold);
+            width: 100%;
+        }
+        .container {
+            width: 90%;
+            max-width: 500px;
+            margin-top: 20px;
+        }
+        .setup-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--gold);
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: none;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: var(--gold);
+            color: var(--japan-blue);
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover {
+            filter: brightness(1.2);
+        }
+        #map-container {
+            position: relative;
+            margin-top: 30px;
+            text-align: center;
+        }
+        canvas {
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+            background: #fff;
+        }
+        .info-panel {
+            margin-top: 20px;
+            background: white;
+            color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .lucky { color: #0077b6; font-weight: bold; }
+        .unlucky { color: #d00000; font-weight: bold; }
+    </style>
 </head>
-
 <body>
 
-<div id="map"></div>
+<header>
+    <h1>⛩️ 吉方位まいりガイド</h1>
+    <p>2026年 丙午の運気を取り込む</p>
+</header>
+
+<div class="container">
+    <div class="setup-card">
+        <label>生年月日を入力してください</label>
+        <input type="date" id="birthdate" value="1995-01-01">
+        <button onclick="calculateFortune()">方位盤を展開する</button>
+    </div>
+
+    <div id="map-container">
+        <canvas id="compassCanvas" width="350" height="350"></canvas>
+    </div>
+
+    <div id="infoPanel" class="info-panel">
+        <h3 id="starName">あなたの本命星: --</h3>
+        <p id="advice"></p>
+        <hr>
+        <p><strong>✨ 2026年 恵方：南南東（丙）</strong><br>
+        この方位の神社（例：熱田神宮など）へ参拝すると最強の知恵が授かります。</p>
+    </div>
+</div>
 
 <script>
+    const stars = ["一白水星", "二黒土星", "三碧木星", "四緑木星", "五黄土星", "六白金星", "七赤金星", "八白土星", "九紫火星"];
+    const directions = ["北", "北東", "東", "南東", "南", "南西", "西", "西北"];
 
-function initMap(){
-new google.maps.Map(document.getElementById("map"),{
-center:{lat:35.681236,lng:139.767125},
-zoom:10
-})
-}
+    function calculateFortune() {
+        const birth = new Date(document.getElementById('birthdate').value);
+        if (isNaN(birth)) return;
 
+        // 本命星の簡易計算 (九星気学)
+        let year = birth.getFullYear();
+        // 節分(2/4)前なら前年扱い
+        if (birth.getMonth() < 1 || (birth.getMonth() === 1 && birth.getDate() < 4)) {
+            year--;
+        }
+        
+        let sum = String(year).split('').reduce((a, b) => parseInt(a) + parseInt(b), 0);
+        while (sum > 9) sum = String(sum).split('').reduce((a, b) => parseInt(a) + parseInt(b), 0);
+        
+        let starIndex = (10 - sum) % 9;
+        if (starIndex === 0) starIndex = 9;
+        
+        const myStar = stars[starIndex - 1];
+        document.getElementById('starName').innerText = `あなたの本命星: ${myStar}`;
+        document.getElementById('infoPanel').style.display = 'block';
+        document.getElementById('advice').innerHTML = `2026年は<span class="lucky">南東</span>と<span class="lucky">西</span>があなたにとっての吉方位です。`;
+
+        drawCompass(starIndex);
+    }
+
+    function drawCompass(starIndex) {
+        const canvas = document.getElementById('compassCanvas');
+        const ctx = canvas.getContext('2d');
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const radius = 150;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 背景描画（地図の代わり）
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#f0f0f0";
+        ctx.fill();
+
+        // 8方位の描画
+        for (let i = 0; i < 8; i++) {
+            const angle = (i * 45 - 112.5) * Math.PI / 180;
+            const endAngle = ((i + 1) * 45 - 112.5) * Math.PI / 180;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius, angle, endAngle);
+            ctx.closePath();
+
+            // 簡易的な吉凶色分け
+            // 北東(1)と南西(5)は2026年の凶方位（仮定）
+            if (i === 1 || i === 5) {
+                ctx.fillStyle = "rgba(230, 57, 70, 0.3)"; // 赤（凶）
+            } else if (i === 3 || i === 6) {
+                ctx.fillStyle = "rgba(69, 123, 157, 0.3)"; // 青（吉）
+            } else {
+                ctx.fillStyle = "rgba(200, 200, 200, 0.2)";
+            }
+            ctx.fill();
+            ctx.strokeSyle = "#ccc";
+            ctx.stroke();
+
+            // ラベル
+            const textAngle = angle + (22.5 * Math.PI / 180);
+            const tx = cx + Math.cos(textAngle) * (radius - 30);
+            const ty = cy + Math.sin(textAngle) * (radius - 30);
+            ctx.fillStyle = "#333";
+            ctx.font = "bold 14px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(directions[i], tx, ty);
+        }
+
+        // 中央（自宅）
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.fillStyle = "#d4af37";
+        ctx.fill();
+        ctx.fillText("自宅", cx, cy + 25);
+    }
+
+    // 初期描画
+    drawCompass(4);
 </script>
-
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
 
 </body>
 </html>
