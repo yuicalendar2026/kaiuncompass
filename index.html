@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>吉方位まいりガイド 2026</title>
+    <title>吉方位まいりガイド 2026 (一白中宮版)</title>
     <style>
         :root {
-            --japan-blue: #001f41; /* 勝色 */
+            --japan-blue: #001f41;
             --gold: #d4af37;
             --danger: #e63946;
-            --good: #457b9d;
+            --safe: #457b9d;
         }
         body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Hiragino Kaku Gothic ProN', sans-serif;
             background-color: var(--japan-blue);
             color: white;
             margin: 0;
@@ -20,194 +20,179 @@
             flex-direction: column;
             align-items: center;
         }
-        header {
-            padding: 20px;
-            text-align: center;
-            border-bottom: 1px solid var(--gold);
+        .app-container {
             width: 100%;
-        }
-        .container {
-            width: 90%;
-            max-width: 500px;
-            margin-top: 20px;
-        }
-        .setup-card {
-            background: rgba(255, 255, 255, 0.1);
+            max-width: 600px;
             padding: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--gold);
-        }
-        input, button {
-            width: 100%;
-            padding: 12px;
-            margin-top: 10px;
-            border-radius: 8px;
-            border: none;
             box-sizing: border-box;
         }
-        button {
-            background-color: var(--gold);
-            color: var(--japan-blue);
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--gold);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(5px);
         }
-        button:hover {
-            filter: brightness(1.2);
-        }
-        #map-container {
+        #map-area {
             position: relative;
-            margin-top: 30px;
-            text-align: center;
-        }
-        canvas {
+            width: 100%;
+            aspect-ratio: 1/1;
+            background: #eee;
             border-radius: 50%;
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
-            background: #fff;
+            overflow: hidden;
+            border: 3px solid var(--gold);
+            cursor: crosshair;
         }
-        .info-panel {
-            margin-top: 20px;
-            background: white;
-            color: #333;
-            padding: 15px;
-            border-radius: 10px;
-            display: none;
+        #compass-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
-        .lucky { color: #0077b6; font-weight: bold; }
-        .unlucky { color: #d00000; font-weight: bold; }
+        .home-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid white;
+            z-index: 10;
+        }
+        .controls { display: grid; gap: 10px; }
+        button {
+            background: var(--gold);
+            color: var(--japan-blue);
+            border: none;
+            padding: 12px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .legend {
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>⛩️ 吉方位まいりガイド</h1>
-    <p>2026年 丙午の運気を取り込む</p>
-</header>
+<div class="app-container">
+    <h2>⛩️ 吉方位まいりガイド 2026</h2>
+    <p style="font-size: 0.9rem; text-align: center;">一白水星中宮年・丙午の運気</p>
 
-<div class="container">
-    <div class="setup-card">
-        <label>生年月日を入力してください</label>
-        <input type="date" id="birthdate" value="1995-01-01">
-        <button onclick="calculateFortune()">方位盤を展開する</button>
+    <div class="card">
+        <div class="controls">
+            <label>1. 地図上をクリックして自宅(太極)を固定</label>
+            <div id="map-area" onclick="setHome(event)">
+                <div id="home-icon" class="home-marker" style="display:none;"></div>
+                <canvas id="compass-canvas"></canvas>
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#999; z-index:0;">MAP AREA</div>
+            </div>
+            <div class="legend">
+                <span>🔴：五黄殺/暗剣殺</span>
+                <span>🔘：歳破</span>
+                <span>🟡：恵方(南南東)</span>
+            </div>
+        </div>
     </div>
 
-    <div id="map-container">
-        <canvas id="compassCanvas" width="350" height="350"></canvas>
-    </div>
-
-    <div id="infoPanel" class="info-panel">
-        <h3 id="starName">あなたの本命星: --</h3>
-        <p id="advice"></p>
-        <hr>
-        <p><strong>✨ 2026年 恵方：南南東（丙）</strong><br>
-        この方位の神社（例：熱田神宮など）へ参拝すると最強の知恵が授かります。</p>
+    <div class="card" id="info-panel">
+        <h3 id="sector-name">方位を選択してください</h3>
+        <p id="fortune-text">自宅を固定すると、2026年の吉凶が表示されます。</p>
     </div>
 </div>
 
 <script>
-    const stars = ["一白水星", "二黒土星", "三碧木星", "四緑木星", "五黄土星", "六白金星", "七赤金星", "八白土星", "九紫火星"];
-    const directions = ["北", "北東", "東", "南東", "南", "南西", "西", "西北"];
+    const canvas = document.getElementById('compass-canvas');
+    const ctx = canvas.getContext('2d');
+    let homePos = null;
 
-    function calculateFortune() {
-        const birth = new Date(document.getElementById('birthdate').value);
-        if (isNaN(birth)) return;
+    // キャンバスサイズ設定
+    function resize() {
+        canvas.width = canvas.parentElement.offsetWidth;
+        canvas.height = canvas.parentElement.offsetHeight;
+        if(homePos) drawCompass();
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
-        // 本命星の簡易計算 (九星気学)
-        let year = birth.getFullYear();
-        // 節分(2/4)前なら前年扱い
-        if (birth.getMonth() < 1 || (birth.getMonth() === 1 && birth.getDate() < 4)) {
-            year--;
-        }
-        
-        let sum = String(year).split('').reduce((a, b) => parseInt(a) + parseInt(b), 0);
-        while (sum > 9) sum = String(sum).split('').reduce((a, b) => parseInt(a) + parseInt(b), 0);
-        
-        let starIndex = (10 - sum) % 9;
-        if (starIndex === 0) starIndex = 9;
-        
-        const myStar = stars[starIndex - 1];
-        document.getElementById('starName').innerText = `あなたの本命星: ${myStar}`;
-        document.getElementById('infoPanel').style.display = 'block';
-        document.getElementById('advice').innerHTML = `2026年は<span class="lucky">南東</span>と<span class="lucky">西</span>があなたにとっての吉方位です。`;
-
-        drawCompass(starIndex);
+    function setHome(event) {
+        const rect = event.target.getBoundingClientRect();
+        homePos = {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
+        const icon = document.getElementById('home-icon');
+        icon.style.display = 'block';
+        icon.style.left = homePos.x + 'px';
+        icon.style.top = homePos.y + 'px';
+        drawCompass();
     }
 
-    function drawCompass(starIndex) {
-        const canvas = document.getElementById('compassCanvas');
-        const ctx = canvas.getContext('2d');
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
-        const radius = 150;
-
+    function drawCompass() {
+        if (!homePos) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const sectors = [
+            { name: "北", angle: 30, star: "六白" },
+            { name: "北東", angle: 60, star: "四緑" },
+            { name: "東", angle: 30, star: "八白" },
+            { name: "南東", angle: 60, star: "九紫" },
+            { name: "南", angle: 30, star: "五黄" },
+            { name: "南西", angle: 60, star: "七赤" },
+            { name: "西", angle: 30, star: "三碧" },
+            { name: "北西", angle: 60, star: "二黒" }
+        ];
 
-        // 背景描画（地図の代わり）
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#f0f0f0";
-        ctx.fill();
+        let currentAngle = -105; // 北(0度)を真上にするための調整
 
-        // 8方位の描画
-        for (let i = 0; i < 8; i++) {
-            const angle = (i * 45 - 112.5) * Math.PI / 180;
-            const endAngle = ((i + 1) * 45 - 112.5) * Math.PI / 180;
-
+        sectors.forEach(s => {
+            const startRad = currentAngle * Math.PI / 180;
+            const endRad = (currentAngle + s.angle) * Math.PI / 180;
+            
             ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.arc(cx, cy, radius, angle, endAngle);
+            ctx.moveTo(homePos.x, homePos.y);
+            ctx.arc(homePos.x, homePos.y, 800, startRad, endRad);
             ctx.closePath();
 
-            // 簡易的な吉凶色分け
-            // 北東(1)と南西(5)は2026年の凶方位（仮定）
-            if (i === 1 || i === 5) {
-                ctx.fillStyle = "rgba(230, 57, 70, 0.3)"; // 赤（凶）
-            } else if (i === 3 || i === 6) {
-                ctx.fillStyle = "rgba(69, 123, 157, 0.3)"; // 青（吉）
-            } else {
-                ctx.fillStyle = "rgba(200, 200, 200, 0.2)";
-            }
+            // 2026年（一白中宮）の吉凶判定
+            let color = "rgba(255, 255, 255, 0.1)";
+            if (s.name === "南") color = "rgba(230, 57, 70, 0.4)"; // 五黄殺
+            if (s.name === "北") color = "rgba(100, 100, 100, 0.6)"; // 暗剣殺・歳破
+            
+            ctx.fillStyle = color;
             ctx.fill();
-            ctx.strokeSyle = "#ccc";
+            ctx.strokeStyle = "rgba(212, 175, 55, 0.3)";
             ctx.stroke();
 
-            // ラベル
-            const textAngle = angle + (22.5 * Math.PI / 180);
-            const tx = cx + Math.cos(textAngle) * (radius - 30);
-            const ty = cy + Math.sin(textAngle) * (radius - 30);
-            ctx.fillStyle = "#333";
-            ctx.font = "bold 14px sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText(directions[i], tx, ty);
-        }
+            // 恵方(南南東)の特別描画
+            if (s.name === "南") {
+                const ehoStart = (157.5 - 90) * Math.PI / 180;
+                const ehoEnd = (172.5 - 90) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(homePos.x, homePos.y);
+                ctx.arc(homePos.x, homePos.y, 800, ehoStart, ehoEnd);
+                ctx.fillStyle = "rgba(212, 175, 55, 0.4)";
+                ctx.fill();
+            }
 
-        // 中央（自宅）
-        ctx.beginPath();
-        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-        ctx.fillStyle = "#d4af37";
-        ctx.fill();
-        ctx.fillText("自宅", cx, cy + 25);
+            currentAngle += s.angle;
+        });
+
+        document.getElementById('sector-name').innerText = "2026年度 方位盤確定";
+        document.getElementById('fortune-text').innerHTML = `
+            基準：一白水星中宮年<br>
+            ・<b>南(30°)</b>：五黄殺（自滅の凶）<br>
+            ・<b>北(30°)</b>：暗剣殺・歳破（災難の凶）<br>
+            ・<b>南南東(丙)</b>：恵方（チャンスの神様）
+        `;
     }
-
-    // 初期描画
-    drawCompass(4);
-    // 自宅（Home）と現在地（Current）の計算ロジック例
-function calculateDirectionFromHome(homeLat, homeLon, currentLat, currentLon) {
-    // 2点間の角度（ラジアン）を算出
-    const y = Math.sin(currentLon - homeLon) * Math.cos(currentLat);
-    const x = Math.cos(homeLat) * Math.sin(currentLat) -
-              Math.sin(homeLat) * Math.cos(currentLat) * Math.cos(currentLon - homeLon);
-    
-    let bearing = Math.atan2(y, x) * 180 / Math.PI;
-    bearing = (bearing + 360) % 360; // 0-360度に変換
-
-    // 九星気学の30度・60度分割に基づいた判定
-    // 例：北・南・東・西は30度、それ以外（北東など）は60度
-    return determineKigakuSector(bearing);
-}
-
 </script>
-
 </body>
 </html>
