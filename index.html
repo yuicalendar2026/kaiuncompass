@@ -1,236 +1,28 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>LuckyCompass 吉方位ナビ</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<meta name="viewport" content="initial-scale=1.0">
 <style>
-
-body{
-margin:0;
-font-family:sans-serif;
-background:#0c0f18;
-color:white;
-}
-
-#map{
-height:100vh;
-width:100%;
-}
-
-.panel{
-position:absolute;
-top:10px;
-left:10px;
-background:rgba(0,0,0,0.7);
-padding:15px;
-border-radius:10px;
-z-index:5;
-width:260px;
-}
-
-input{
-width:100%;
-padding:8px;
-margin-top:5px;
-margin-bottom:10px;
-border:none;
-border-radius:6px;
-}
-
-button{
-width:100%;
-padding:10px;
-background:gold;
-border:none;
-border-radius:6px;
-font-weight:bold;
-}
-
-.result{
-margin-top:10px;
-font-size:14px;
-}
-
+#map{height:100vh}
 </style>
 </head>
 
 <body>
 
-<div class="panel">
-
-<h3>🧭 吉方位ナビ</h3>
-
-<label>生年月日</label>
-<input type="date" id="birth">
-
-<label>行きたい場所</label>
-<input id="place" placeholder="例：伊勢神宮">
-
-<button onclick="searchPlace()">方位チェック</button>
-
-<div class="result" id="result"></div>
-
-</div>
-
 <div id="map"></div>
-
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places"></script>
 
 <script>
 
-let map
-let home
-let marker
-
 function initMap(){
-
-navigator.geolocation.getCurrentPosition(pos=>{
-
-home={
-lat:pos.coords.latitude,
-lng:pos.coords.longitude
-}
-
-map=new google.maps.Map(document.getElementById("map"),{
-zoom:10,
-center:home
+new google.maps.Map(document.getElementById("map"),{
+center:{lat:35.681236,lng:139.767125},
+zoom:10
 })
-
-new google.maps.Marker({
-position:home,
-map:map,
-label:"🏠"
-})
-
-drawCompass()
-
-})
-
 }
-
-function drawCompass(){
-
-const directions=[
-{deg:0,color:"#666"},
-{deg:45,color:"#666"},
-{deg:90,color:"#4da6ff"},
-{deg:135,color:"#4da6ff"},
-{deg:180,color:"#666"},
-{deg:225,color:"#ff4d4d"},
-{deg:270,color:"#ff4d4d"},
-{deg:315,color:"#666"}
-]
-
-directions.forEach(d=>{
-
-const line=new google.maps.Polyline({
-path:[
-home,
-destinationPoint(home,d.deg,200000)
-],
-strokeColor:d.color,
-strokeOpacity:0.8,
-strokeWeight:4,
-map:map
-})
-
-})
-
-}
-
-function destinationPoint(start,bearing,distance){
-
-const R=6378137
-
-const brng=bearing*Math.PI/180
-const lat1=start.lat*Math.PI/180
-const lon1=start.lng*Math.PI/180
-
-const lat2=Math.asin(
-Math.sin(lat1)*Math.cos(distance/R)+
-Math.cos(lat1)*Math.sin(distance/R)*Math.cos(brng)
-)
-
-const lon2=lon1+Math.atan2(
-Math.sin(brng)*Math.sin(distance/R)*Math.cos(lat1),
-Math.cos(distance/R)-Math.sin(lat1)*Math.sin(lat2)
-)
-
-return{
-lat:lat2*180/Math.PI,
-lng:lon2*180/Math.PI
-}
-
-}
-
-function searchPlace(){
-
-const service=new google.maps.places.PlacesService(map)
-
-const request={
-query:document.getElementById("place").value,
-fields:["name","geometry"]
-}
-
-service.findPlaceFromQuery(request,(results,status)=>{
-
-if(status===google.maps.places.PlacesServiceStatus.OK){
-
-const place=results[0]
-
-if(marker)marker.setMap(null)
-
-marker=new google.maps.Marker({
-position:place.geometry.location,
-map:map,
-label:"⛩"
-})
-
-map.panTo(place.geometry.location)
-
-checkDirection(place.geometry.location)
-
-}
-
-})
-
-}
-
-function checkDirection(dest){
-
-const dy=dest.lat()-home.lat
-const dx=dest.lng()-home.lng
-
-let deg=Math.atan2(dx,dy)*180/Math.PI
-if(deg<0)deg+=360
-
-let result=""
-
-if(deg>80 && deg<140){
-result="🌟 吉方位（人間関係・結婚運）"
-}
-else if(deg>250 && deg<290){
-result="💰 金運アップ方位"
-}
-else if(deg>200 && deg<240){
-result="⚠ 凶方位（五黄殺）"
-}
-else{
-result="△ 可もなく不可もなし"
-}
-
-document.getElementById("result").innerHTML=
-
-"方位角："+Math.round(deg)+"°<br>"+result
-
-}
-
-window.onload=initMap
 
 </script>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
 
 </body>
 </html>
