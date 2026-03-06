@@ -1,1 +1,158 @@
-Leaflet（オープンソース地図）を使い、スクロールや拡大縮小が可能な本物の地図を実装しました
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>吉方位まいり 2026 | 自己完結エンジン</title>
+    <style>
+        :root { --main: #001f41; --gold: #d4af37; --red: #e63946; --gray: #666; }
+        body { margin: 0; background: var(--main); color: white; font-family: sans-serif; overflow: hidden; }
+        
+        /* 地図代わりのグリッドキャンバス */
+        #map-canvas { background-color: #f0f0f0; cursor: crosshair; display: block; }
+        
+        .ui-overlay {
+            position: absolute; bottom: 0; width: 100%;
+            background: white; color: #333; padding: 20px;
+            border-radius: 20px 20px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.5);
+            box-sizing: border-box; z-index: 10;
+        }
+        .header { text-align: center; margin-bottom: 15px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 10px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-home { background: var(--main); color: white; }
+        .btn-clear { background: #ccc; color: #333; }
+        
+        .result-panel {
+            background: #f8f9fa; border: 1px dashed var(--gold);
+            padding: 10px; border-radius: 8px; font-size: 14px;
+        }
+        .badge { font-weight: bold; padding: 2px 6px; border-radius: 4px; color: white; }
+    </style>
+</head>
+<body>
+
+<canvas id="map-canvas"></canvas>
+
+<div class="ui-overlay">
+    <div class="header">
+        <h2 style="margin:0; font-size:18px;">⛩️ 吉方位まいり 2026</h2>
+        <small>一白水星中宮・丙午（ひのえうま）</small>
+    </div>
+
+    <div class="controls">
+        <button class="btn-home" onclick="mode='setHome'">🏠 自宅を置く</button>
+        <button class="btn-clear" onclick="resetAll()">🔄 リセット</button>
+    </div>
+
+    <div id="result" class="result-panel">
+        地図（グリッド）をクリックして、自宅の位置を固定してください。
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('map-canvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let home = null;
+    let target = null;
+    let mode = 'setHome';
+
+    function init() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight * 0.7;
+        draw();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        drawGrid();
+        if (home) drawCompass();
+        if (home) drawMarker(home, "🏠自宅", "blue");
+        if (target) drawMarker(target, "📍目的地", varColor(targetAngle));
+        requestAnimationFrame(draw);
+    }
+
+    function drawGrid() {
+        ctx.strokeStyle = "#ddd";
+        ctx.lineWidth = 1;
+        for(let x=0; x<width; x+=50) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,height); ctx.stroke(); }
+        for(let y=0; y<height; y+=50) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(width,y); ctx.stroke(); }
+    }
+
+    function drawCompass() {
+        const sectors = [
+            { name: "北", angle: 30, start: -15, color: "rgba(102,102,102,0.4)" }, // 歳破・暗剣
+            { name: "北東", angle: 60, start: 15, color: "rgba(200,200,200,0.2)" },
+            { name: "東", angle: 30, start: 75, color: "rgba(69,123,157,0.2)" },
+            { name: "南東", angle: 60, start: 105, color: "rgba(69,123,157,0.2)" },
+            { name: "南", angle: 30, start: 165, color: "rgba(230,57,70,0.4)" },  // 五黄殺
+            { name: "南西", angle: 60, start: 195, color: "rgba(200,200,200,0.2)" },
+            { name: "西", angle: 30, start: 255, color: "rgba(69,123,157,0.2)" },
+            { name: "北西", angle: 60, start: 285, color: "rgba(200,200,200,0.2)" }
+        ];
+
+        sectors.forEach(s => {
+            ctx.beginPath();
+            ctx.moveTo(home.x, home.y);
+            ctx.arc(home.x, home.y, 1000, (s.start - 90)*Math.PI/180, (s.start + s.angle - 90)*Math.PI/180);
+            ctx.fillStyle = s.color;
+            ctx.fill();
+            ctx.strokeStyle = "white";
+            ctx.stroke();
+        });
+
+        // 2026年恵方（南南東：約165度付近）をゴールド強調
+        ctx.beginPath();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#d4af37";
+        const ehoRad = (165 - 90) * Math.PI / 180;
+        ctx.moveTo(home.x, home.y);
+        ctx.lineTo(home.x + Math.cos(ehoRad)*200, home.y + Math.sin(ehoRad)*200);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+    }
+
+    function drawMarker(p, label, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI*2); ctx.fill();
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText(label, p.x + 12, p.y + 5);
+    }
+
+    let targetAngle = 0;
+    canvas.addEventListener('mousedown', (e) => {
+        if (mode === 'setHome') {
+            home = { x: e.clientX, y: e.clientY };
+            mode = 'setTarget';
+            updateUI("自宅を固定しました。目的地をクリックしてください。");
+        } else {
+            target = { x: e.clientX, y: e.clientY };
+            const dx = target.x - home.x;
+            const dy = target.y - home.y;
+            targetAngle = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+            judge(targetAngle);
+        }
+    });
+
+    function judge(angle) {
+        let msg = `方位角: ${Math.round(angle)}度 | `;
+        if (angle > 345 || angle <= 15) msg += "<b style='color:var(--gray)'>北：歳破・暗剣殺（大凶）</b>";
+        else if (angle > 165 && angle <= 195) msg += "<b style='color:var(--red)'>南：五黄殺（大凶）</b>";
+        else if (angle > 157.5 && angle <= 172.5) msg += "<b style='color:var(--gold)'>南南東：✨恵方参り✨</b>";
+        else msg += "<b style='color:var(--main)'>吉方位（または安定）</b>";
+        updateUI(msg);
+    }
+
+    function varColor(a) {
+        if (a > 345 || a <= 15 || (a > 165 && a <= 195)) return "red";
+        return "#d4af37";
+    }
+
+    function updateUI(text) { document.getElementById('result').innerHTML = text; }
+    function resetAll() { home = null; target = null; mode = 'setHome'; updateUI("自宅を置いてください。"); }
+
+    window.addEventListener('resize', init);
+    init();
+</script>
+</body>
+</html>
