@@ -192,6 +192,21 @@
 
     // 初期描画
     drawCompass(4);
+    // 自宅（Home）と現在地（Current）の計算ロジック例
+function calculateDirectionFromHome(homeLat, homeLon, currentLat, currentLon) {
+    // 2点間の角度（ラジアン）を算出
+    const y = Math.sin(currentLon - homeLon) * Math.cos(currentLat);
+    const x = Math.cos(homeLat) * Math.sin(currentLat) -
+              Math.sin(homeLat) * Math.cos(currentLat) * Math.cos(currentLon - homeLon);
+    
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    bearing = (bearing + 360) % 360; // 0-360度に変換
+
+    // 九星気学の30度・60度分割に基づいた判定
+    // 例：北・南・東・西は30度、それ以外（北東など）は60度
+    return determineKigakuSector(bearing);
+}
+
 </script>
 
 </body>
